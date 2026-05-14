@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת קבלות דיגיטלית</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a2744;
+            --primary-light: #2a3a5c;
+            --accent: #f0a500;
+            --accent-hover: #d49400;
+            --accent-light: #fef3cd;
+            --bg: #f5f6fa;
+            --card: #ffffff;
+            --text: #1a2744;
+            --text-light: #6b7280;
+            --border: #e2e8f0;
+            --border-focus: #f0a500;
+            --danger: #ef4444;
+            --danger-bg: #fef2f2;
+            --success: #10b981;
+            --radius: 12px;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Heebo', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            direction: rtl;
+            min-height: 100vh;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        .slide-down { animation: slideDown 0.3s ease-out; }
+
+        /* ===== HEADER ===== */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 18px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(26,39,68,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .header-logo {
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+        .btn-settings {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Heebo', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-settings:hover {
+            background: rgba(255,255,255,0.22);
+            transform: translateY(-1px);
+        }
+
+        /* ===== MAIN LAYOUT ===== */
+        .app-container {
+            display: flex;
+            gap: 28px;
+            padding: 28px;
+            max-width: 1440px;
+            margin: 0 auto;
+            align-items: flex-start;
+        }
+
+        /* ===== FORM PANEL ===== */
+        .form-panel {
+            flex: 0 0 440px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* ===== PREVIEW PANEL ===== */
+        .preview-panel {
+            flex: 1;
+            position: sticky;
+            top: 90px;
+        }
+        .preview-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            transition: box-shadow 0.2s;
+        }
+        .card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--bg);
+        }
+        .card-title .icon {
+            font-size: 18px;
+        }
+
+        /* ===== FORM ELEMENTS ===== */
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Heebo', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--card);
+            transition: all 0.2s;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(240,165,0,0.15);
+        }
+        .form-input::placeholder {
+            color: #c0c6d0;
+        }
+        .form-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: left 12px center;
+            padding-left: 32px;
+            cursor: pointer;
+        }
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .form-row .form-group.small {
+            flex: 0 0 140px;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Heebo', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(240,165,0,0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(240,165,0,0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+        .btn-ghost {
+            background: transparent;
+            color: var(--accent);
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+        .btn-ghost:hover {
+            background: var(--accent-light);
+        }
+        .btn-danger-ghost {
+            background: transparent;
+            color: var(--danger);
+            padding: 4px 8px;
+            font-size: 18px;
+            border-radius: 6px;
+            min-width: 32px;
+        }
+        .btn-danger-ghost:hover {
+            background: var(--danger-bg);
+        }
+        .btn-generate {
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 16px rgba(26,39,68,0.3);
+        }
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(26,39,68,0.4);
+        }
+        .btn-generate:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ===== ITEMS TABLE ===== */
+        .items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .item-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            animation: slideDown 0.2s ease-out;
+        }
+        .item-row .form-input {
+            margin-bottom: 0;
+        }
+        .item-desc { flex: 1; }
+        .item-amount { flex: 0 0 120px; }
+        .items-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 2px dashed var(--border);
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .items-total .amount {
+            color: var(--accent-hover);
+            font-size: 18px;
+        }
+
+        /* ===== CUSTOMER SECTION ===== */
+        .customer-controls {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .customer-controls .form-group { flex: 1; margin-bottom: 0; }
+        .new-customer-form {
+            margin-top: 12px;
+            padding: 16px;
+            background: var(--bg);
+            border-radius: 8px;
+            animation: slideDown 0.3s ease-out;
+        }
+        .new-customer-form .form-row {
+            margin-bottom: 8px;
+        }
+        .customer-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(26,39,68,0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 32px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: var(--shadow-lg);
+            animation: slideDown 0.3s ease-out;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+            justify-content: flex-start;
+        }
+
+        /* ===== RECEIPT DOCUMENT ===== */
+        .receipt-document {
+            background: white;
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 48px 44px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03);
+            border-radius: 2px;
+            position: relative;
+            min-height: 500px;
+        }
+        .receipt-document::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+
+        .receipt-biz-header {
+            text-align: center;
+            margin-bottom: 8px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #333;
+        }
+        .receipt-biz-name {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+        .receipt-biz-details {
+            font-size: 13px;
+            color: #444;
+            line-height: 1.7;
+        }
+        .receipt-biz-taxid {
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        .receipt-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 20px 0;
+        }
+        .receipt-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .receipt-source {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            border: 1px solid #999;
+            padding: 2px 14px;
+            border-radius: 4px;
+        }
+
+        .receipt-customer {
+            margin: 16px 0 20px;
+            line-height: 1.8;
+        }
+        .receipt-customer-line {
+            font-size: 15px;
+        }
+        .receipt-customer-line span {
+            font-weight: 600;
+        }
+        .receipt-customer-value {
+            border-bottom: 1px dotted #999;
+            padding-bottom: 1px;
+            min-width: 200px;
+            display: inline-block;
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        .receipt-table th {
+            background: var(--primary);
+            color: white;
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 14px;
+            text-align: right;
+        }
+        .receipt-table th:first-child {
+            text-align: right;
+        }
+        .receipt-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+            text-align: right;
+        }
+        .receipt-table .col-details {
+            width: 70%;
+        }
+        .receipt-table .col-amount {
+            width: 30%;
+            text-align: left;
+            font-family: 'Heebo', sans-serif;
+        }
+        .receipt-table th.col-amount {
+            text-align: left;
+        }
+        .receipt-table td.col-amount {
+            text-align: left;
+            font-weight: 500;
+        }
+        .receipt-total-row td {
+            border-top: 2px solid #333;
+            border-bottom: 2px solid #333;
+            font-weight: 700;
+            font-size: 16px;
+            background: #f8f9fa;
+        }
+
+        .receipt-payment {
+            margin-top: 20px;
+            font-size: 15px;
+            display: flex;
+            gap: 6px;
+        }
+        .receipt-payment-label {
+            font-weight: 600;
+        }
+        .receipt-payment-method {
+            border-bottom: 1px dotted #999;
+            padding-bottom: 1px;
+        }
+
+        .receipt-footer {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .receipt-date {
+            font-size: 15px;
+        }
+        .receipt-date span {
+            font-weight: 600;
+        }
+        .receipt-signature {
+            text-align: center;
+        }
+        .receipt-signature-line {
+            width: 160px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 6px;
+            height: 30px;
+        }
+        .receipt-signature-label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .receipt-empty {
+            color: #ccc;
+            font-style: italic;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 960px) {
+            .app-container {
+                flex-direction: column;
+                padding: 16px;
+                gap: 20px;
+            }
+            .form-panel {
+                flex: 1;
+                width: 100%;
+            }
+            .preview-panel {
+                position: static;
+                width: 100%;
+            }
+            .receipt-document {
+                padding: 32px 24px;
+            }
+        }
+        @media (max-width: 500px) {
+            .app-header {
+                padding: 14px 16px;
+            }
+            .header-title h1 {
+                font-size: 17px;
+            }
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            .form-row .form-group.small {
+                flex: 1;
+            }
+            .item-row {
+                flex-wrap: wrap;
+            }
+            .item-amount {
+                flex: 0 0 100px;
+            }
+            .receipt-document {
+                padding: 24px 16px;
+            }
+            .receipt-biz-name {
+                font-size: 22px;
+            }
+            .receipt-meta {
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+        }
+
+        /* ===== PRINT ===== */
+        @media print {
+            body { background: white; }
+            .app-header, .form-panel, .preview-label, .no-print { display: none !important; }
+            .app-container { padding: 0; }
+            .preview-panel { position: static; }
+            .receipt-document {
+                box-shadow: none;
+                padding: 20px;
+                max-width: 100%;
+            }
+            .receipt-document::before { display: none; }
+        }
+
+        /* ===== LOADING SPINNER ===== */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary);
+            color: white;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        const PAYMENT_METHODS = ['העברה בנקאית', 'Bit', 'מזומן', "צ'ק", 'PayBox'];
+
+        const DEFAULT_BUSINESS = {
+            name: 'ירדן בני',
+            address: "רח' העצמאות 20, פתח תקווה",
+            phone: '054-7419414',
+            email: 'yarden1611@gmail.com',
+            taxId: '200131704',
+            taxType: 'עוסק פטור'
+        };
+
+        function loadStorage(key, fallback) {
+            try {
+                const v = localStorage.getItem(key);
+                return v ? JSON.parse(v) : fallback;
+            } catch { return fallback; }
+        }
+        function saveStorage(key, value) {
+            try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+        }
+
+        function formatDisplayDate(dateStr) {
+            if (!dateStr) return '';
+            const [y, m, d] = dateStr.split('-');
+            return `${d}.${m}.${y}`;
+        }
+        function formatCurrency(n) {
+            return new Intl.NumberFormat('he-IL').format(n);
+        }
+        function padNum(n, len) {
+            return String(n).padStart(len, '0');
+        }
+        function todayStr() {
+            const d = new Date();
+            return d.toISOString().split('T')[0];
+        }
+
+        function App() {
+            const [business, setBusiness] = useState(() => loadStorage('rcpt_biz', DEFAULT_BUSINESS));
+            const [customers, setCustomers] = useState(() => loadStorage('rcpt_customers', []));
+            const [selCustId, setSelCustId] = useState('');
+            const [custName, setCustName] = useState('');
+            const [custAddr, setCustAddr] = useState('');
+            const [showNewCust, setShowNewCust] = useState(false);
+
+            const [rcptNum, setRcptNum] = useState(() => {
+                const last = loadStorage('rcpt_lastNum', 0);
+                return padNum(last + 1, 4);
+            });
+            const [date, setDate] = useState(todayStr);
+            const [items, setItems] = useState([{ id: Date.now(), desc: '', amount: '' }]);
+            const [payment, setPayment] = useState(PAYMENT_METHODS[0]);
+            const [showSettings, setShowSettings] = useState(false);
+            const [generating, setGenerating] = useState(false);
+            const [toast, setToast] = useState('');
+
+            const receiptRef = useRef(null);
+
+            useEffect(() => { saveStorage('rcpt_biz', business); }, [business]);
+            useEffect(() => { saveStorage('rcpt_customers', customers); }, [customers]);
+
+            const showToast = (msg) => {
+                setToast(msg);
+                setTimeout(() => setToast(''), 2500);
+            };
+
+            const selectCustomer = (id) => {
+                setSelCustId(id);
+                if (id === '__new__') {
+                    setShowNewCust(true);
+                    setCustName('');
+                    setCustAddr('');
+                    return;
+                }
+                setShowNewCust(false);
+                const c = customers.find(c => c.id === id);
+                if (c) {
+                    setCustName(c.name);
+                    setCustAddr(c.address);
+                } else {
+                    setCustName('');
+                    setCustAddr('');
+                }
+            };
+
+            const saveNewCustomer = () => {
+                if (!custName.trim()) return;
+                const nc = { id: String(Date.now()), name: custName.trim(), address: custAddr.trim() };
+                setCustomers(prev => [...prev, nc]);
+                setSelCustId(nc.id);
+                setShowNewCust(false);
+                showToast('הלקוח נשמר בהצלחה');
+            };
+
+            const deleteCustomer = (id) => {
+                setCustomers(prev => prev.filter(c => c.id !== id));
+                if (selCustId === id) {
+                    setSelCustId('');
+                    setCustName('');
+                    setCustAddr('');
+                }
+            };
+
+            const addItem = () => setItems(prev => [...prev, { id: Date.now(), desc: '', amount: '' }]);
+            const removeItem = (id) => { if (items.length > 1) setItems(prev => prev.filter(i => i.id !== id)); };
+            const updateItem = (id, field, val) => setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: val } : i));
+
+            const total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+
+            const generatePDF = async () => {
+                if (!custName.trim()) {
+                    showToast('יש למלא שם לקוח');
+                    return;
+                }
+                setGenerating(true);
+                try {
+                    await new Promise(r => setTimeout(r, 100));
+                    const el = receiptRef.current;
+                    const canvas = await html2canvas(el, {
+                        scale: 2.5,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        windowWidth: el.scrollWidth,
+                        windowHeight: el.scrollHeight
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pw = pdf.internal.pageSize.getWidth();
+                    const imgW = pw - 24;
+                    const imgH = (canvas.height * imgW) / canvas.width;
+                    pdf.addImage(imgData, 'PNG', 12, 12, imgW, imgH);
+                    pdf.save(`קבלה_${rcptNum}.pdf`);
+
+                    const currentNum = parseInt(rcptNum, 10);
+                    saveStorage('rcpt_lastNum', currentNum);
+                    setRcptNum(padNum(currentNum + 1, 4));
+                    showToast('הקבלה הופקה בהצלחה!');
+                } catch (err) {
+                    showToast('שגיאה ביצירת PDF');
+                    console.error(err);
+                }
+                setGenerating(false);
+            };
+
+            const validItems = items.filter(i => i.desc.trim() || i.amount);
+
+            return (
+                <div className="fade-in">
+                    {/* Header */}
+                    <header className="app-header">
+                        <div className="header-title">
+                            <div className="header-logo">ק</div>
+                            <h1>מערכת קבלות דיגיטלית</h1>
+                        </div>
+                        <button className="btn-settings" onClick={() => setShowSettings(true)}>
+                            <span>⚙</span> הגדרות עסק
+                        </button>
+                    </header>
+
+                    {/* Settings Modal */}
+                    {showSettings && (
+                        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+                            <div className="modal-content slide-down" onClick={e => e.stopPropagation()}>
+                                <h2 className="modal-title">הגדרות פרטי עסק</h2>
+                                <div className="form-group">
+                                    <label className="form-label">שם העסק</label>
+                                    <input className="form-input" value={business.name}
+                                        onChange={e => setBusiness(p => ({...p, name: e.target.value}))} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">כתובת</label>
+                                    <input className="form-input" value={business.address}
+                                        onChange={e => setBusiness(p => ({...p, address: e.target.value}))} />
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">טלפון</label>
+                                        <input className="form-input" value={business.phone}
+                                            onChange={e => setBusiness(p => ({...p, phone: e.target.value}))} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">אימייל</label>
+                                        <input className="form-input" value={business.email}
+                                            onChange={e => setBusiness(p => ({...p, email: e.target.value}))} />
+                                    </div>
+                                </div>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">סוג עוסק</label>
+                                        <select className="form-select" value={business.taxType}
+                                            onChange={e => setBusiness(p => ({...p, taxType: e.target.value}))}>
+                                            <option value="עוסק פטור">עוסק פטור</option>
+                                            <option value="עוסק מורשה">עוסק מורשה</option>
+                                            <option value="חברה בע״מ">חברה בע״מ</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">מספר עוסק / ח.פ.</label>
+                                        <input className="form-input" value={business.taxId}
+                                            onChange={e => setBusiness(p => ({...p, taxId: e.target.value}))} />
+                                    </div>
+                                </div>
+                                <div className="modal-actions">
+                                    <button className="btn btn-primary" onClick={() => setShowSettings(false)}>שמור וסגור</button>
+                                    <button className="btn btn-secondary" onClick={() => { setBusiness(DEFAULT_BUSINESS); }}>
+                                        אפס לברירת מחדל
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Main */}
+                    <div className="app-container">
+                        {/* ===== FORM ===== */}
+                        <div className="form-panel">
+
+                            {/* Customer Card */}
+                            <div className="card">
+                                <div className="card-title"><span className="icon">👤</span> פרטי לקוח</div>
+                                <div className="customer-controls">
+                                    <div className="form-group">
+                                        <label className="form-label">בחר לקוח קיים</label>
+                                        <select className="form-select" value={selCustId}
+                                            onChange={e => selectCustomer(e.target.value)}>
+                                            <option value="">— בחר לקוח —</option>
+                                            {customers.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                            <option value="__new__">+ לקוח חדש...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {showNewCust && (
+                                    <div className="new-customer-form slide-down">
+                                        <div className="form-group">
+                                            <label className="form-label">שם לקוח</label>
+                                            <input className="form-input" placeholder="הזן שם לקוח"
+                                                value={custName} onChange={e => setCustName(e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">כתובת</label>
+                                            <input className="form-input" placeholder="הזן כתובת"
+                                                value={custAddr} onChange={e => setCustAddr(e.target.value)} />
+                                        </div>
+                                        <div className="customer-actions">
+                                            <button className="btn btn-primary" onClick={saveNewCustomer}>שמור לקוח</button>
+                                            <button className="btn btn-secondary" onClick={() => {
+                                                setShowNewCust(false);
+                                                setSelCustId('');
+                                            }}>ביטול</button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!showNewCust && (
+                                    <>
+                                        <div className="form-group" style={{marginTop: 12}}>
+                                            <label className="form-label">שם לקוח</label>
+                                            <input className="form-input" placeholder="שם הלקוח" value={custName}
+                                                onChange={e => setCustName(e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">כתובת</label>
+                                            <input className="form-input" placeholder="כתובת הלקוח" value={custAddr}
+                                                onChange={e => setCustAddr(e.target.value)} />
+                                        </div>
+                                    </>
+                                )}
+
+                                {selCustId && selCustId !== '__new__' && (
+                                    <button className="btn btn-danger-ghost" style={{fontSize: 13, marginTop: 4}}
+                                        onClick={() => { if(confirm('למחוק את הלקוח?')) deleteCustomer(selCustId); }}>
+                                        🗑 מחק לקוח
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Receipt Info Card */}
+                            <div className="card">
+                                <div className="card-title"><span className="icon">📄</span> פרטי קבלה</div>
+                                <div className="form-row">
+                                    <div className="form-group small">
+                                        <label className="form-label">מספר קבלה</label>
+                                        <input className="form-input" value={rcptNum}
+                                            onChange={e => setRcptNum(e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">תאריך</label>
+                                        <input className="form-input" type="date" value={date}
+                                            onChange={e => setDate(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">אמצעי תשלום</label>
+                                    <select className="form-select" value={payment}
+                                        onChange={e => setPayment(e.target.value)}>
+                                        {PAYMENT_METHODS.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Items Card */}
+                            <div className="card">
+                                <div className="card-title"><span className="icon">📝</span> פירוט שורות</div>
+                                <div className="items-list">
+                                    <div className="item-row" style={{fontWeight: 600, fontSize: 13, color: 'var(--text-light)', marginBottom: 4}}>
+                                        <div className="item-desc">תיאור</div>
+                                        <div className="item-amount">סכום (₪)</div>
+                                        <div style={{width: 32}}></div>
+                                    </div>
+                                    {items.map((item, idx) => (
+                                        <div key={item.id} className="item-row">
+                                            <input className="form-input item-desc"
+                                                placeholder={idx === 0 ? 'עבור: ...' : 'תיאור נוסף'}
+                                                value={item.desc}
+                                                onChange={e => updateItem(item.id, 'desc', e.target.value)} />
+                                            <input className="form-input item-amount" type="number" min="0" step="0.01"
+                                                placeholder="0"
+                                                value={item.amount}
+                                                onChange={e => updateItem(item.id, 'amount', e.target.value)} />
+                                            <button className="btn btn-danger-ghost" onClick={() => removeItem(item.id)}
+                                                disabled={items.length <= 1}
+                                                style={{opacity: items.length <= 1 ? 0.3 : 1}}>×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button className="btn btn-ghost" onClick={addItem} style={{marginTop: 8}}>+ הוסף שורה</button>
+                                <div className="items-total">
+                                    <span>סה״כ</span>
+                                    <span className="amount">₪ {formatCurrency(total)}</span>
+                                </div>
+                            </div>
+
+                            {/* Generate Button */}
+                            <button className="btn btn-generate" onClick={generatePDF} disabled={generating}>
+                                {generating ? (
+                                    <><span className="spinner"></span> מפיק קבלה...</>
+                                ) : (
+                                    <>📥 הפק קבלה (PDF)</>
+                                )}
+                            </button>
+                        </div>
+
+                        {/* ===== PREVIEW ===== */}
+                        <div className="preview-panel">
+                            <div className="preview-label no-print">👁 תצוגה מקדימה</div>
+                            <div ref={receiptRef} className="receipt-document" id="receipt-preview">
+                                {/* Biz Header */}
+                                <div className="receipt-biz-header">
+                                    <div className="receipt-biz-name">{business.name}</div>
+                                    <div className="receipt-biz-details">
+                                        {business.address} {business.phone && <>| נייד: {business.phone}</>}
+                                        {business.email && <><br/>{business.email}</>}
+                                    </div>
+                                    <div className="receipt-biz-taxid">
+                                        {business.taxType} מס׳ {business.taxId}
+                                    </div>
+                                </div>
+
+                                {/* Meta */}
+                                <div className="receipt-meta">
+                                    <div className="receipt-number">קבלה מס׳ {rcptNum}</div>
+                                    <div className="receipt-source">מקור</div>
+                                </div>
+
+                                {/* Customer */}
+                                <div className="receipt-customer">
+                                    <div className="receipt-customer-line">
+                                        <span>לכבוד: </span>
+                                        <span className="receipt-customer-value">
+                                            {custName || <span className="receipt-empty">_______________</span>}
+                                        </span>
+                                    </div>
+                                    <div className="receipt-customer-line">
+                                        <span>כתובת: </span>
+                                        <span className="receipt-customer-value">
+                                            {custAddr || <span className="receipt-empty">_______________</span>}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Table */}
+                                <table className="receipt-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-details">פרטים</th>
+                                            <th className="col-amount">הסכום בש״ח</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {items.map((item, idx) => (
+                                            <tr key={item.id}>
+                                                <td className="col-details">
+                                                    {item.desc || <span className="receipt-empty">—</span>}
+                                                </td>
+                                                <td className="col-amount">
+                                                    {item.amount ? formatCurrency(parseFloat(item.amount)) : ''}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {items.length === 0 && (
+                                            <tr><td colSpan="2" className="receipt-empty" style={{textAlign:'center'}}>אין פריטים</td></tr>
+                                        )}
+                                        <tr className="receipt-total-row">
+                                            <td className="col-details" style={{fontWeight: 700}}>סה״כ</td>
+                                            <td className="col-amount" style={{fontWeight: 700}}>
+                                                {total > 0 ? `₪ ${formatCurrency(total)}` : '—'}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                {/* Payment */}
+                                <div className="receipt-payment">
+                                    <span className="receipt-payment-label">שולם באמצעות:</span>
+                                    <span className="receipt-payment-method">{payment}</span>
+                                </div>
+
+                                {/* Footer */}
+                                <div className="receipt-footer">
+                                    <div className="receipt-date">
+                                        <span>תאריך: </span>{formatDisplayDate(date)}
+                                    </div>
+                                    <div className="receipt-signature">
+                                        <div className="receipt-signature-line"></div>
+                                        <div className="receipt-signature-label">חתימה</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Toast */}
+                    {toast && <div className="toast">{toast}</div>}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
