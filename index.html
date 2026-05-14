@@ -717,7 +717,7 @@
             const [showNewCust, setShowNewCust] = useState(false);
 
             const [rcptNum, setRcptNum] = useState(() => {
-                const last = loadStorage('rcpt_lastNum', 0);
+                const last = loadStorage('rcpt_lastNum', 450);
                 return padNum(last + 1, 4);
             });
             const [date, setDate] = useState(todayStr);
