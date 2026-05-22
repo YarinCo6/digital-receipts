@@ -570,8 +570,9 @@
             height: 30px;
         }
         .receipt-signature-label {
-            font-size: 13px;
-            color: #666;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
         }
 
         .receipt-empty {
@@ -805,38 +806,46 @@
                 }
                 setGenerating(true);
                 try {
-                    await new Promise(r => setTimeout(r, 300));
+                    await new Promise(r => setTimeout(r, 200));
                     const el = receiptRef.current;
 
-                    // Force full layout before capture
-                    const origStyle = el.style.cssText;
-                    el.style.overflow = 'visible';
-                    el.style.height = 'auto';
-                    el.style.maxHeight = 'none';
-                    el.style.position = 'relative';
+                    // Clone element to a fixed off-screen container to avoid mobile viewport clipping
+                    const clone = el.cloneNode(true);
+                    clone.style.position = 'fixed';
+                    clone.style.top = '0';
+                    clone.style.right = '0';
+                    clone.style.width = '700px';
+                    clone.style.zIndex = '-9999';
+                    clone.style.opacity = '0';
+                    clone.style.pointerEvents = 'none';
+                    clone.style.overflow = 'visible';
+                    clone.style.height = 'auto';
+                    clone.style.maxHeight = 'none';
+                    clone.style.padding = '48px 44px';
+                    clone.style.background = '#ffffff';
+                    document.body.appendChild(clone);
 
-                    // Wait for images (signature) to load
-                    const imgs = el.querySelectorAll('img');
+                    // Wait for images in clone to load
+                    const imgs = clone.querySelectorAll('img');
                     await Promise.all(Array.from(imgs).map(img => {
                         if (img.complete) return Promise.resolve();
                         return new Promise(res => { img.onload = res; img.onerror = res; });
                     }));
+                    await new Promise(r => setTimeout(r, 200));
 
-                    const canvas = await html2canvas(el, {
+                    const canvas = await html2canvas(clone, {
                         scale: 2,
                         useCORS: true,
                         allowTaint: true,
                         backgroundColor: '#ffffff',
                         logging: false,
-                        width: el.scrollWidth,
-                        height: el.scrollHeight,
+                        width: clone.scrollWidth,
+                        height: clone.scrollHeight,
                         scrollX: 0,
-                        scrollY: 0,
-                        x: 0,
-                        y: 0
+                        scrollY: 0
                     });
 
-                    el.style.cssText = origStyle;
+                    document.body.removeChild(clone);
 
                     const imgData = canvas.toDataURL('image/png');
                     const { jsPDF } = window.jspdf;
