@@ -828,18 +828,18 @@
                     await new Promise(r => setTimeout(r, 200));
                     const el = receiptRef.current;
 
-                    // Clone element to a fixed off-screen container to avoid mobile viewport clipping
+                    // Clone element off-screen (NOT opacity:0 — html2canvas needs visible content)
                     const clone = el.cloneNode(true);
                     clone.style.position = 'fixed';
                     clone.style.top = '0';
-                    clone.style.right = '0';
+                    clone.style.left = '-9999px';
                     clone.style.width = '700px';
                     clone.style.zIndex = '-9999';
-                    clone.style.opacity = '0';
                     clone.style.pointerEvents = 'none';
                     clone.style.overflow = 'visible';
                     clone.style.height = 'auto';
                     clone.style.maxHeight = 'none';
+                    clone.style.minHeight = 'auto';
                     clone.style.padding = '48px 44px';
                     clone.style.background = '#ffffff';
                     document.body.appendChild(clone);
