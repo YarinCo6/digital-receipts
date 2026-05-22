@@ -594,10 +594,29 @@
             .preview-panel {
                 position: static;
                 width: 100%;
+                overflow: visible;
             }
             .receipt-document {
                 padding: 32px 24px 40px;
+                overflow: visible !important;
+                min-height: auto;
+                height: auto;
+                max-height: none;
+            }
+            .receipt-footer {
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                position: relative;
                 overflow: visible;
+                margin-top: 32px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            }
+            .receipt-date,
+            .receipt-signature {
+                display: block !important;
+                visibility: visible !important;
             }
         }
         @media (max-width: 500px) {
@@ -621,7 +640,7 @@
                 flex: 0 0 100px;
             }
             .receipt-document {
-                padding: 24px 16px;
+                padding: 24px 16px 40px;
             }
             .receipt-biz-name {
                 font-size: 22px;
