@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עורך לוגו מקומי</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        :root {
+            --bg: #f4f6f8;
+            --panel: #ffffff;
+            --ink: #172033;
+            --muted: #667085;
+            --border: #d9e0ea;
+            --soft: #edf1f6;
+            --primary: #2457d6;
+            --primary-dark: #1a43a6;
+            --danger: #c73737;
+            --shadow: 0 8px 24px rgba(18, 30, 52, 0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'Heebo', Arial, sans-serif;
+            direction: rtl;
+        }
+        button, input, select {
+            font: inherit;
+        }
+        .app-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+        }
+        .topbar {
+            height: 58px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+            gap: 16px;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 230px;
+        }
+        .brand h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .workspace {
+            display: grid;
+            grid-template-columns: 250px minmax(0, 1fr) 300px;
+            gap: 16px;
+            padding: 16px;
+            min-height: 0;
+        }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            min-width: 0;
+        }
+        .side-panel {
+            padding: 14px;
+            overflow: auto;
+        }
+        .panel-title {
+            margin: 0 0 12px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .canvas-stage {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-height: 0;
+        }
+        .stage-header {
+            min-height: 46px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .stage-header strong {
+            font-size: 14px;
+        }
+        .stage-header span {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .canvas-wrap {
+            display: grid;
+            place-items: center;
+            min-height: 0;
+            padding: 22px;
+            overflow: auto;
+            background: #edf1f6;
+        }
+        .canvas-card {
+            width: 620px;
+            height: 620px;
+            background: #fff;
+            border: 1px solid #c9d2df;
+            box-shadow: 0 18px 50px rgba(18, 30, 52, 0.18);
+        }
+        .tool-btn {
+            width: 38px;
+            height: 34px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+            color: var(--ink);
+            cursor: pointer;
+            display: inline-grid;
+            place-items: center;
+        }
+        .tool-btn:hover {
+            background: var(--soft);
+        }
+        .tool-btn.primary {
+            width: auto;
+            padding: 0 12px;
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+            display: inline-flex;
+            gap: 6px;
+        }
+        .tool-btn.primary:hover {
+            background: var(--primary-dark);
+        }
+        .tool-btn.danger {
+            color: var(--danger);
+        }
+        .tool-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        .field {
+            display: grid;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .field label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+        }
+        .field input,
+        .field select {
+            width: 100%;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ink);
+            padding: 0 10px;
+            outline: none;
+        }
+        .field input:focus,
+        .field select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(36, 87, 214, 0.14);
+        }
+        .field input[type="color"] {
+            padding: 3px;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .wide-btn {
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--ink);
+            padding: 0 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+        .wide-btn:hover {
+            background: var(--soft);
+        }
+        .wide-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        .layer-list {
+            display: grid;
+            gap: 8px;
+        }
+        .layer-item {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .layer-item.active {
+            border-color: var(--primary);
+            background: #eef4ff;
+        }
+        .swatches {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .swatch {
+            aspect-ratio: 1;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .segmented {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .segmented button {
+            height: 34px;
+            border: 0;
+            border-left: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+        }
+        .segmented button:last-child {
+            border-left: 0;
+        }
+        .segmented button.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .file-input {
+            display: none;
+        }
+        @media (max-width: 1080px) {
+            .workspace {
+                grid-template-columns: 230px minmax(0, 1fr);
+            }
+            .properties {
+                grid-column: 1 / -1;
+            }
+        }
+        @media (max-width: 760px) {
+            .topbar {
+                height: auto;
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 12px;
+            }
+            .workspace {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            .canvas-card {
+                width: 92vw;
+                height: 92vw;
+                max-width: 620px;
+                max-height: 620px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="brand">
+                <h1>עורך לוגו</h1>
+            </div>
+            <div class="toolbar" aria-label="סרגל כלים">
+                <button class="tool-btn" id="addText" aria-label="הוסף טקסט" data-tooltip="טקסט"><i data-lucide="type"></i></button>
+                <button class="tool-btn" id="addRect" aria-label="הוסף מלבן" data-tooltip="מלבן"><i data-lucide="square"></i></button>
+                <button class="tool-btn" id="addCircle" aria-label="הוסף עיגול" data-tooltip="עיגול"><i data-lucide="circle"></i></button>
+                <button class="tool-btn" id="addTriangle" aria-label="הוסף משולש" data-tooltip="משולש"><i data-lucide="triangle"></i></button>
+                <button class="tool-btn" id="addLine" aria-label="הוסף קו" data-tooltip="קו"><i data-lucide="minus"></i></button>
+                <button class="tool-btn" id="uploadBtn" aria-label="העלה תמונה" data-tooltip="תמונה"><i data-lucide="image-up"></i></button>
+                <input class="file-input" id="imageUpload" type="file" accept="image/*">
+                <button class="tool-btn" id="undoBtn" aria-label="בטל פעולה" data-tooltip="בטל"><i data-lucide="undo-2"></i></button>
+                <button class="tool-btn" id="redoBtn" aria-label="בצע שוב" data-tooltip="בצע שוב"><i data-lucide="redo-2"></i></button>
+                <button class="tool-btn danger" id="deleteBtn" aria-label="מחק בחירה" data-tooltip="מחק"><i data-lucide="trash-2"></i></button>
+            </div>
+            <div class="actions">
+                <button class="tool-btn primary" id="exportPng"><i data-lucide="download"></i><span>PNG</span></button>
+                <button class="tool-btn primary" id="exportSvg"><i data-lucide="file-down"></i><span>SVG</span></button>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <aside class="panel side-panel">
+                <h2 class="panel-title">תבניות</h2>
+                <div class="button-row">
+                    <button class="wide-btn" id="templateInitials"><i data-lucide="badge"></i><span>ראשי תיבות</span></button>
+                    <button class="wide-btn" id="templateStamp"><i data-lucide="circle-dot"></i><span>חותמת</span></button>
+                    <button class="wide-btn" id="templateClean"><i data-lucide="sparkles"></i><span>נקי</span></button>
+                </div>
+
+                <h2 class="panel-title">צבעים</h2>
+                <div class="swatches" id="swatches"></div>
+
+                <h2 class="panel-title">שכבות</h2>
+                <div class="button-row">
+                    <button class="wide-btn" id="bringForward"><i data-lucide="bring-to-front"></i><span>קדימה</span></button>
+                    <button class="wide-btn" id="sendBackward"><i data-lucide="send-to-back"></i><span>אחורה</span></button>
+                </div>
+                <div class="layer-list" id="layerList"></div>
+            </aside>
+
+            <section class="panel canvas-stage">
+                <div class="stage-header">
+                    <strong>קנבס</strong>
+                    <span id="selectionLabel">ללא בחירה</span>
+                </div>
+                <div class="canvas-wrap">
+                    <div class="canvas-card">
+                        <canvas id="logoCanvas" width="620" height="620"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="panel side-panel properties">
+                <h2 class="panel-title">מאפיינים</h2>
+                <div class="field">
+                    <label for="objectText">טקסט</label>
+                    <input id="objectText" type="text" value="">
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="fontFamily">גופן</label>
+                        <select id="fontFamily">
+                            <option value="Heebo">Heebo</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Impact">Impact</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="fontSize">גודל</label>
+                        <input id="fontSize" type="number" min="10" max="180" value="72">
+                    </div>
+                </div>
+                <div class="segmented" aria-label="יישור טקסט">
+                    <button id="alignRight">ימין</button>
+                    <button id="alignCenter" class="active">מרכז</button>
+                    <button id="alignLeft">שמאל</button>
+                </div>
+                <div class="button-row">
+                    <button class="wide-btn" id="boldBtn"><strong>B</strong></button>
+                    <button class="wide-btn" id="italicBtn"><em>I</em></button>
+                    <button class="wide-btn" id="duplicateBtn"><i data-lucide="copy"></i><span>שכפל</span></button>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="fillColor">מילוי</label>
+                        <input id="fillColor" type="color" value="#172033">
+                    </div>
+                    <div class="field">
+                        <label for="strokeColor">קו</label>
+                        <input id="strokeColor" type="color" value="#172033">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="strokeWidth">עובי קו</label>
+                        <input id="strokeWidth" type="number" min="0" max="30" value="0">
+                    </div>
+                    <div class="field">
+                        <label for="opacity">שקיפות</label>
+                        <input id="opacity" type="range" min="10" max="100" value="100">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="canvasBg">רקע</label>
+                        <input id="canvasBg" type="color" value="#ffffff">
+                    </div>
+                    <div class="field">
+                        <label for="logoName">שם קובץ</label>
+                        <input id="logoName" type="text" value="logo">
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button class="wide-btn" id="fitBtn"><i data-lucide="maximize-2"></i><span>מרכז</span></button>
+                    <button class="wide-btn danger" id="clearBtn"><i data-lucide="eraser"></i><span>נקה</span></button>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        const canvas = new fabric.Canvas('logoCanvas', {
+            preserveObjectStacking: true,
+            backgroundColor: '#ffffff',
+            selectionColor: 'rgba(36, 87, 214, 0.12)',
+            selectionBorderColor: '#2457d6',
+            selectionLineWidth: 1
+        });
+
+        const colors = ['#172033', '#2457d6', '#0f766e', '#b42318', '#7a2e0e', '#ffffff', '#f3f4f6', '#111827', '#64748b', '#ef4444'];
+        const els = {
+            addText: document.getElementById('addText'),
+            addRect: document.getElementById('addRect'),
+            addCircle: document.getElementById('addCircle'),
+            addTriangle: document.getElementById('addTriangle'),
+            addLine: document.getElementById('addLine'),
+            uploadBtn: document.getElementById('uploadBtn'),
+            imageUpload: document.getElementById('imageUpload'),
+            undoBtn: document.getElementById('undoBtn'),
+            redoBtn: document.getElementById('redoBtn'),
+            deleteBtn: document.getElementById('deleteBtn'),
+            exportPng: document.getElementById('exportPng'),
+            exportSvg: document.getElementById('exportSvg'),
+            objectText: document.getElementById('objectText'),
+            fontFamily: document.getElementById('fontFamily'),
+            fontSize: document.getElementById('fontSize'),
+            fillColor: document.getElementById('fillColor'),
+            strokeColor: document.getElementById('strokeColor'),
+            strokeWidth: document.getElementById('strokeWidth'),
+            opacity: document.getElementById('opacity'),
+            canvasBg: document.getElementById('canvasBg'),
+            logoName: document.getElementById('logoName'),
+            layerList: document.getElementById('layerList'),
+            selectionLabel: document.getElementById('selectionLabel'),
+            bringForward: document.getElementById('bringForward'),
+            sendBackward: document.getElementById('sendBackward'),
+            duplicateBtn: document.getElementById('duplicateBtn'),
+            boldBtn: document.getElementById('boldBtn'),
+            italicBtn: document.getElementById('italicBtn'),
+            fitBtn: document.getElementById('fitBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            templateInitials: document.getElementById('templateInitials'),
+            templateStamp: document.getElementById('templateStamp'),
+            templateClean: document.getElementById('templateClean'),
+            alignRight: document.getElementById('alignRight'),
+            alignCenter: document.getElementById('alignCenter'),
+            alignLeft: document.getElementById('alignLeft'),
+            swatches: document.getElementById('swatches')
+        };
+
+        let history = [];
+        let future = [];
+        let restoring = false;
+
+        function saveState() {
+            if (restoring) return;
+            history.push(JSON.stringify(canvas.toDatalessJSON(['name'])));
+            if (history.length > 60) history.shift();
+            future = [];
+        }
+        function restoreState(state) {
+            restoring = true;
+            canvas.loadFromJSON(state, () => {
+                canvas.renderAll();
+                restoring = false;
+                refreshUi();
+            });
+        }
+        function undo() {
+            if (history.length < 2) return;
+            future.push(history.pop());
+            restoreState(history[history.length - 1]);
+        }
+        function redo() {
+            if (!future.length) return;
+            const next = future.pop();
+            history.push(next);
+            restoreState(next);
+        }
+        function selected() {
+            return canvas.getActiveObject();
+        }
+        function addObject(obj, name) {
+            obj.set({
+                name,
+                cornerColor: '#2457d6',
+                cornerStrokeColor: '#ffffff',
+                borderColor: '#2457d6',
+                transparentCorners: false,
+                padding: 4
+            });
+            canvas.add(obj);
+            canvas.setActiveObject(obj);
+            canvas.requestRenderAll();
+            saveState();
+            refreshUi();
+        }
+        function applyToSelection(props) {
+            const obj = selected();
+            if (!obj) return;
+            obj.set(props);
+            canvas.requestRenderAll();
+            saveState();
+            refreshUi();
+        }
+        function isTextEntryEvent(event) {
+            const target = event.target;
+            const tagName = target?.tagName?.toLowerCase();
+            const obj = selected();
+            return tagName === 'input'
+                || tagName === 'select'
+                || tagName === 'textarea'
+                || Boolean(target?.isContentEditable)
+                || Boolean(target?.closest?.('[contenteditable="true"]'))
+                || Boolean(obj?.isEditing);
+        }
+        function deleteSelection() {
+            const obj = selected();
+            if (!obj || obj.isEditing) return;
+            if (obj.type === 'activeSelection') {
+                obj.getObjects().forEach(item => canvas.remove(item));
+            } else {
+                canvas.remove(obj);
+            }
+            canvas.discardActiveObject();
+            canvas.requestRenderAll();
+            saveState();
+            refreshUi();
+        }
+        function download(dataUrl, filename) {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+        function downloadText(text, filename, type) {
+            const blob = new Blob([text], { type });
+            const url = URL.createObjectURL(blob);
+            download(url, filename);
+            URL.revokeObjectURL(url);
+        }
+        function fileBase() {
+            return (els.logoName.value || 'logo').trim().replace(/[\\/:*?"<>|]+/g, '-');
+        }
+        function layerName(obj, index) {
+            if (obj.name) return obj.name;
+            if (obj.type === 'textbox') return 'טקסט';
+            if (obj.type === 'circle') return 'עיגול';
+            if (obj.type === 'triangle') return 'משולש';
+            if (obj.type === 'line') return 'קו';
+            if (obj.type === 'image') return 'תמונה';
+            return `שכבה ${index + 1}`;
+        }
+        function refreshLayers() {
+            els.layerList.innerHTML = '';
+            const objects = canvas.getObjects().slice().reverse();
+            objects.forEach((obj, visibleIndex) => {
+                const originalIndex = canvas.getObjects().indexOf(obj);
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'layer-item' + (obj === selected() ? ' active' : '');
+                item.innerHTML = `<span>${layerName(obj, originalIndex)}</span><span>${visibleIndex + 1}</span>`;
+                item.addEventListener('click', () => {
+                    canvas.setActiveObject(obj);
+                    canvas.requestRenderAll();
+                    refreshUi();
+                });
+                els.layerList.appendChild(item);
+            });
+        }
+        function setAlign(value) {
+            [els.alignRight, els.alignCenter, els.alignLeft].forEach(btn => btn.classList.remove('active'));
+            if (value === 'right') els.alignRight.classList.add('active');
+            if (value === 'center') els.alignCenter.classList.add('active');
+            if (value === 'left') els.alignLeft.classList.add('active');
+        }
+        function refreshUi() {
+            const obj = selected();
+            els.selectionLabel.textContent = obj ? layerName(obj, canvas.getObjects().indexOf(obj)) : 'ללא בחירה';
+            els.objectText.disabled = !(obj && obj.type === 'textbox');
+            els.fontFamily.disabled = !(obj && obj.type === 'textbox');
+            els.fontSize.disabled = !(obj && obj.type === 'textbox');
+            els.boldBtn.disabled = !(obj && obj.type === 'textbox');
+            els.italicBtn.disabled = !(obj && obj.type === 'textbox');
+            if (obj) {
+                els.fillColor.value = obj.fill && typeof obj.fill === 'string' ? obj.fill : '#172033';
+                els.strokeColor.value = obj.stroke && typeof obj.stroke === 'string' ? obj.stroke : '#172033';
+                els.strokeWidth.value = obj.strokeWidth || 0;
+                els.opacity.value = Math.round((obj.opacity || 1) * 100);
+                if (obj.type === 'textbox') {
+                    els.objectText.value = obj.text || '';
+                    els.fontFamily.value = obj.fontFamily || 'Heebo';
+                    els.fontSize.value = Math.round(obj.fontSize || 72);
+                    setAlign(obj.textAlign || 'center');
+                }
+            }
+            refreshLayers();
+        }
+        function clearCanvas() {
+            canvas.getObjects().forEach(obj => canvas.remove(obj));
+            canvas.backgroundColor = els.canvasBg.value;
+            canvas.requestRenderAll();
+            saveState();
+            refreshUi();
+        }
+        function makeInitialsTemplate() {
+            clearCanvas();
+            addObject(new fabric.Circle({ left: 155, top: 90, radius: 155, fill: '#2457d6' }), 'סמל');
+            addObject(new fabric.Textbox('YC', {
+                left: 195, top: 178, width: 230, fill: '#ffffff', fontFamily: 'Heebo',
+                fontSize: 96, fontWeight: 800, textAlign: 'center'
+            }), 'ראשי תיבות');
+            addObject(new fabric.Textbox('Yarin Cohen', {
+                left: 120, top: 415, width: 380, fill: '#172033', fontFamily: 'Heebo',
+                fontSize: 42, fontWeight: 700, textAlign: 'center'
+            }), 'שם');
+            saveState();
+        }
+        function makeStampTemplate() {
+            clearCanvas();
+            addObject(new fabric.Circle({ left: 140, top: 90, radius: 170, fill: 'transparent', stroke: '#172033', strokeWidth: 12 }), 'טבעת');
+            addObject(new fabric.Circle({ left: 195, top: 145, radius: 115, fill: 'transparent', stroke: '#2457d6', strokeWidth: 4 }), 'טבעת פנימית');
+            addObject(new fabric.Textbox('YARIN', {
+                left: 160, top: 203, width: 300, fill: '#172033', fontFamily: 'Heebo',
+                fontSize: 54, fontWeight: 800, textAlign: 'center'
+            }), 'שם מרכזי');
+            addObject(new fabric.Textbox('DIGITAL RECEIPTS', {
+                left: 125, top: 395, width: 370, fill: '#2457d6', fontFamily: 'Heebo',
+                fontSize: 28, fontWeight: 700, textAlign: 'center'
+            }), 'תיאור');
+            saveState();
+        }
+        function makeCleanTemplate() {
+            clearCanvas();
+            addObject(new fabric.Rect({ left: 110, top: 155, width: 118, height: 118, fill: '#2457d6', rx: 18, ry: 18, angle: 45 }), 'סימן');
+            addObject(new fabric.Textbox('Yarin Cohen', {
+                left: 250, top: 205, width: 270, fill: '#172033', fontFamily: 'Heebo',
+                fontSize: 45, fontWeight: 800, textAlign: 'left'
+            }), 'שם');
+            addObject(new fabric.Line([250, 290, 515, 290], { stroke: '#64748b', strokeWidth: 4 }), 'קו');
+            addObject(new fabric.Textbox('Digital Receipts', {
+                left: 250, top: 305, width: 270, fill: '#64748b', fontFamily: 'Heebo',
+                fontSize: 25, textAlign: 'left'
+            }), 'תיאור');
+            saveState();
+        }
+
+        els.addText.addEventListener('click', () => addObject(new fabric.Textbox('לוגו', {
+            left: 185, top: 260, width: 250, fill: '#172033', fontFamily: 'Heebo',
+            fontSize: 72, fontWeight: 700, textAlign: 'center'
+        }), 'טקסט'));
+        els.addRect.addEventListener('click', () => addObject(new fabric.Rect({ left: 210, top: 210, width: 200, height: 140, fill: '#2457d6', rx: 8, ry: 8 }), 'מלבן'));
+        els.addCircle.addEventListener('click', () => addObject(new fabric.Circle({ left: 220, top: 190, radius: 100, fill: '#2457d6' }), 'עיגול'));
+        els.addTriangle.addEventListener('click', () => addObject(new fabric.Triangle({ left: 230, top: 190, width: 170, height: 170, fill: '#2457d6' }), 'משולש'));
+        els.addLine.addEventListener('click', () => addObject(new fabric.Line([180, 310, 440, 310], { stroke: '#172033', strokeWidth: 8 }), 'קו'));
+        els.uploadBtn.addEventListener('click', () => els.imageUpload.click());
+        els.imageUpload.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => fabric.Image.fromURL(e.target.result, img => {
+                img.scaleToWidth(260);
+                img.set({ left: 180, top: 180 });
+                addObject(img, 'תמונה');
+            });
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        });
+        els.undoBtn.addEventListener('click', undo);
+        els.redoBtn.addEventListener('click', redo);
+        els.deleteBtn.addEventListener('click', () => {
+            deleteSelection();
+        });
+        els.exportPng.addEventListener('click', () => download(canvas.toDataURL({ format: 'png', multiplier: 3 }), `${fileBase()}.png`));
+        els.exportSvg.addEventListener('click', () => downloadText(canvas.toSVG(), `${fileBase()}.svg`, 'image/svg+xml'));
+        els.bringForward.addEventListener('click', () => { const obj = selected(); if (obj) { canvas.bringForward(obj); saveState(); refreshUi(); } });
+        els.sendBackward.addEventListener('click', () => { const obj = selected(); if (obj) { canvas.sendBackwards(obj); saveState(); refreshUi(); } });
+        els.duplicateBtn.addEventListener('click', () => {
+            const obj = selected();
+            if (!obj) return;
+            obj.clone(clone => {
+                clone.set({ left: obj.left + 24, top: obj.top + 24, name: `${layerName(obj, 0)} copy` });
+                addObject(clone, clone.name);
+            });
+        });
+        els.boldBtn.addEventListener('click', () => {
+            const obj = selected();
+            if (obj && obj.type === 'textbox') applyToSelection({ fontWeight: obj.fontWeight === '800' || obj.fontWeight === 800 ? 400 : 800 });
+        });
+        els.italicBtn.addEventListener('click', () => {
+            const obj = selected();
+            if (obj && obj.type === 'textbox') applyToSelection({ fontStyle: obj.fontStyle === 'italic' ? 'normal' : 'italic' });
+        });
+        els.fitBtn.addEventListener('click', () => {
+            const obj = selected();
+            if (!obj) return;
+            obj.center();
+            obj.setCoords();
+            canvas.requestRenderAll();
+            saveState();
+            refreshUi();
+        });
+        els.clearBtn.addEventListener('click', () => clearCanvas());
+        els.templateInitials.addEventListener('click', makeInitialsTemplate);
+        els.templateStamp.addEventListener('click', makeStampTemplate);
+        els.templateClean.addEventListener('click', makeCleanTemplate);
+        els.objectText.addEventListener('input', e => applyToSelection({ text: e.target.value }));
+        els.fontFamily.addEventListener('change', e => applyToSelection({ fontFamily: e.target.value }));
+        els.fontSize.addEventListener('input', e => applyToSelection({ fontSize: Number(e.target.value) }));
+        els.fillColor.addEventListener('input', e => applyToSelection({ fill: e.target.value }));
+        els.strokeColor.addEventListener('input', e => applyToSelection({ stroke: e.target.value }));
+        els.strokeWidth.addEventListener('input', e => applyToSelection({ strokeWidth: Number(e.target.value) }));
+        els.opacity.addEventListener('input', e => applyToSelection({ opacity: Number(e.target.value) / 100 }));
+        els.canvasBg.addEventListener('input', e => {
+            canvas.backgroundColor = e.target.value;
+            canvas.requestRenderAll();
+            saveState();
+        });
+        els.alignRight.addEventListener('click', () => { applyToSelection({ textAlign: 'right' }); setAlign('right'); });
+        els.alignCenter.addEventListener('click', () => { applyToSelection({ textAlign: 'center' }); setAlign('center'); });
+        els.alignLeft.addEventListener('click', () => { applyToSelection({ textAlign: 'left' }); setAlign('left'); });
+
+        colors.forEach(color => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.className = 'swatch';
+            swatch.style.background = color;
+            swatch.setAttribute('aria-label', color);
+            swatch.addEventListener('click', () => {
+                els.fillColor.value = color;
+                applyToSelection({ fill: color });
+            });
+            els.swatches.appendChild(swatch);
+        });
+
+        canvas.on('selection:created', refreshUi);
+        canvas.on('selection:updated', refreshUi);
+        canvas.on('selection:cleared', refreshUi);
+        canvas.on('object:modified', () => { saveState(); refreshUi(); });
+        canvas.on('text:changed', refreshUi);
+        canvas.on('editing:exited', () => { saveState(); refreshUi(); });
+        canvas.on('object:added', refreshLayers);
+        canvas.on('object:removed', refreshLayers);
+        document.addEventListener('keydown', e => {
+            if (isTextEntryEvent(e)) return;
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (!selected()) return;
+                e.preventDefault();
+                els.deleteBtn.click();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+        });
+
+        makeCleanTemplate();
+        history = [JSON.stringify(canvas.toDatalessJSON(['name']))];
+        lucide.createIcons();
+    </script>
+</body>
+</html>
