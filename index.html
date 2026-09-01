@@ -800,7 +800,6 @@
             const [customers, setCustomers] = useState(() => loadStorage('rcpt_customers', []));
             const [selCustId, setSelCustId] = useState('');
             const [custName, setCustName] = useState(DEFAULT_RECEIPT.customerName);
-            const [custAddr, setCustAddr] = useState(DEFAULT_RECEIPT.customerAddress);
             const [showNewCust, setShowNewCust] = useState(false);
 
             const [rcptNum, setRcptNum] = useState(DEFAULT_RECEIPT.number);
@@ -828,23 +827,20 @@
                 if (id === '__new__') {
                     setShowNewCust(true);
                     setCustName('');
-                    setCustAddr('');
                     return;
                 }
                 setShowNewCust(false);
                 const c = customers.find(c => c.id === id);
                 if (c) {
                     setCustName(c.name);
-                    setCustAddr(c.address);
                 } else {
                     setCustName('');
-                    setCustAddr('');
                 }
             };
 
             const saveNewCustomer = () => {
                 if (!custName.trim()) return;
-                const nc = { id: String(Date.now()), name: custName.trim(), address: custAddr.trim() };
+                const nc = { id: String(Date.now()), name: custName.trim() };
                 setCustomers(prev => [...prev, nc]);
                 setSelCustId(nc.id);
                 setShowNewCust(false);
@@ -856,7 +852,6 @@
                 if (selCustId === id) {
                     setSelCustId('');
                     setCustName('');
-                    setCustAddr('');
                 }
             };
 
@@ -1031,11 +1026,6 @@
                                             <input className="form-input" placeholder="הזן שם לקוח"
                                                 value={custName} onChange={e => setCustName(e.target.value)} />
                                         </div>
-                                        <div className="form-group">
-                                            <label className="form-label">כתובת</label>
-                                            <input className="form-input" placeholder="הזן כתובת"
-                                                value={custAddr} onChange={e => setCustAddr(e.target.value)} />
-                                        </div>
                                         <div className="customer-actions">
                                             <button className="btn btn-primary" onClick={saveNewCustomer}>שמור לקוח</button>
                                             <button className="btn btn-secondary" onClick={() => {
@@ -1052,11 +1042,6 @@
                                             <label className="form-label">שם לקוח</label>
                                             <input className="form-input" placeholder="שם הלקוח" value={custName}
                                                 onChange={e => setCustName(e.target.value)} />
-                                        </div>
-                                        <div className="form-group">
-                                            <label className="form-label">כתובת</label>
-                                            <input className="form-input" placeholder="כתובת הלקוח" value={custAddr}
-                                                onChange={e => setCustAddr(e.target.value)} />
                                         </div>
                                     </>
                                 )}
@@ -1179,12 +1164,6 @@
                                         <span>לכבוד: </span>
                                         <span className="receipt-customer-value">
                                             {custName || <span className="receipt-empty">_______________</span>}
-                                        </span>
-                                    </div>
-                                    <div className="receipt-customer-line">
-                                        <span>כתובת: </span>
-                                        <span className="receipt-customer-value">
-                                            {custAddr || <span className="receipt-empty">_______________</span>}
                                         </span>
                                     </div>
                                 </div>
