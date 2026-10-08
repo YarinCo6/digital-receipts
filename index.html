@@ -12,8 +12,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/forge/1.3.1/forge.min.js"></script>
     <style>
         html, body, input, select, textarea, button {
             color-scheme: light only;
@@ -593,52 +591,6 @@
             text-align: center;
             flex-shrink: 0;
         }
-        .receipt-computerized {
-            margin-top: 8px;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-        }
-        .receipt-fingerprint {
-            margin-top: 2px;
-            font-size: 10px;
-        }
-        .receipt-fingerprint-hex {
-            display: inline-block;
-            direction: ltr;
-            unicode-bidi: isolate;
-            font-family: monospace;
-        }
-
-        .sig-note {
-            font-size: 13px;
-            color: var(--text-light);
-            line-height: 1.6;
-            margin-bottom: 12px;
-        }
-        .sig-ok {
-            font-weight: 600;
-            color: var(--success);
-            margin-bottom: 6px;
-        }
-        .sig-fp {
-            font-size: 12px;
-            color: var(--text-light);
-            margin-bottom: 4px;
-        }
-        .sig-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 12px;
-        }
-        .sig-divider {
-            margin: 16px 0 10px;
-            padding-top: 12px;
-            border-top: 1px dashed var(--border);
-            font-size: 13px;
-            color: var(--text-light);
-        }
         .receipt-signature-img {
             width: 160px;
             height: auto;
@@ -784,190 +736,6 @@
 <body>
     <div id="root"></div>
 
-    <script>
-        // Digital signing of receipt PDFs (PKCS#7 detached, adbe.pkcs7.detached).
-        // The private key is generated on this device and kept only as a password-encrypted PKCS#12.
-        window.ReceiptSigner = (() => {
-            const P12_KEY = 'rcpt_sigP12';
-            const SIG_HEX_LEN = 16384;
-            let unlocked = null; // { key, cert } while unlocked in this session
-
-            function bytesToBinary(u8) {
-                let s = '';
-                for (let i = 0; i < u8.length; i += 0x8000) {
-                    s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
-                }
-                return s;
-            }
-            function binaryToBytes(s) {
-                const u8 = new Uint8Array(s.length);
-                for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i) & 0xff;
-                return u8;
-            }
-            function getStoredP12() {
-                try { return localStorage.getItem(P12_KEY); } catch { return null; }
-            }
-
-            function parseP12(b64, password) {
-                const p12 = forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(forge.util.decode64(b64)), password);
-                const keyOid = forge.pki.oids.pkcs8ShroudedKeyBag;
-                const certOid = forge.pki.oids.certBag;
-                const keyBag = (p12.getBags({ bagType: keyOid })[keyOid] || [])[0];
-                const certBag = (p12.getBags({ bagType: certOid })[certOid] || [])[0];
-                if (!keyBag || !certBag) throw new Error('הקובץ לא מכיל מפתח ותעודה');
-                return { key: keyBag.key, cert: certBag.cert };
-            }
-
-            function certDer(cert) {
-                return forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
-            }
-            function readText(v) {
-                if (/[^\x00-\xff]/.test(v)) return v;
-                try { return forge.util.decodeUtf8(v); } catch { return v; }
-            }
-            function info() {
-                if (!unlocked) return null;
-                const { cert } = unlocked;
-                const cn = cert.subject.getField('CN');
-                return {
-                    name: cn ? readText(cn.value) : '',
-                    fingerprint: forge.md.sha256.create().update(certDer(cert)).digest().toHex().toUpperCase(),
-                    validTo: cert.validity.notAfter
-                };
-            }
-
-            async function generate({ name, taxId, email }, password) {
-                const kp = await crypto.subtle.generateKey(
-                    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 3072, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
-                    true, ['sign', 'verify']);
-                const pkcs8 = new Uint8Array(await crypto.subtle.exportKey('pkcs8', kp.privateKey));
-                const key = forge.pki.privateKeyFromAsn1(forge.asn1.fromDer(bytesToBinary(pkcs8)));
-
-                const cert = forge.pki.createCertificate();
-                cert.publicKey = forge.pki.setRsaPublicKey(key.n, key.e);
-                cert.serialNumber = '01' + forge.util.bytesToHex(forge.random.getBytesSync(15));
-                const now = new Date();
-                cert.validity.notBefore = new Date(now.getTime() - 60 * 1000);
-                cert.validity.notAfter = new Date(now);
-                cert.validity.notAfter.setFullYear(now.getFullYear() + 10);
-                const attrs = [{ name: 'commonName', value: name, valueTagClass: forge.asn1.Type.UTF8 }];
-                if (taxId) attrs.push({ type: '2.5.4.5', value: taxId });
-                attrs.push({ name: 'countryName', value: 'IL' });
-                if (email) attrs.push({ name: 'emailAddress', value: email, valueTagClass: forge.asn1.Type.IA5STRING });
-                cert.setSubject(attrs);
-                cert.setIssuer(attrs);
-                cert.setExtensions([
-                    { name: 'basicConstraints', cA: false, critical: true },
-                    { name: 'keyUsage', digitalSignature: true, nonRepudiation: true, critical: true },
-                    { name: 'subjectKeyIdentifier' }
-                ]);
-                cert.sign(key, forge.md.sha256.create());
-
-                const p12Asn1 = forge.pkcs12.toPkcs12Asn1(key, [cert], password,
-                    { algorithm: 'aes256', count: 10000, friendlyName: 'Receipt signing key' });
-                const b64 = forge.util.encode64(forge.asn1.toDer(p12Asn1).getBytes());
-                importP12(b64, password);
-                return b64;
-            }
-
-            function importP12(b64, password) {
-                const parsed = parseP12(b64, password);
-                localStorage.setItem(P12_KEY, b64);
-                unlocked = parsed;
-            }
-            function unlock(password) {
-                const b64 = getStoredP12();
-                if (!b64) throw new Error('אין מפתח חתימה במכשיר');
-                unlocked = parseP12(b64, password);
-            }
-            function lock() { unlocked = null; }
-            function remove() {
-                unlocked = null;
-                try { localStorage.removeItem(P12_KEY); } catch {}
-            }
-            function status() {
-                return { hasKey: !!getStoredP12(), unlocked: !!unlocked, info: info() };
-            }
-            function p12Bytes() {
-                const b64 = getStoredP12();
-                return b64 ? binaryToBytes(forge.util.decode64(b64)) : null;
-            }
-            function certBytes() {
-                return unlocked ? binaryToBytes(certDer(unlocked.cert)) : null;
-            }
-
-            async function signPdf(pdfBytes, { name, reason, location }) {
-                if (!unlocked) throw new Error('מפתח החתימה נעול');
-                const { PDFDocument, PDFName, PDFNumber, PDFHexString, PDFString, PDFArray } = PDFLib;
-                const doc = await PDFDocument.load(pdfBytes);
-                const ctx = doc.context;
-                const page = doc.getPages()[0];
-
-                const byteRange = PDFArray.withContext(ctx);
-                byteRange.push(PDFNumber.of(0));
-                for (let i = 0; i < 3; i++) byteRange.push(PDFName.of('**********'));
-                const sigRef = ctx.register(ctx.obj({
-                    Type: 'Sig',
-                    Filter: 'Adobe.PPKLite',
-                    SubFilter: 'adbe.pkcs7.detached',
-                    ByteRange: byteRange,
-                    Contents: PDFHexString.of('0'.repeat(SIG_HEX_LEN)),
-                    Reason: PDFHexString.fromText(reason),
-                    Name: PDFHexString.fromText(name),
-                    Location: PDFHexString.fromText(location || ''),
-                    M: PDFString.fromDate(new Date())
-                }));
-                const widgetRef = ctx.register(ctx.obj({
-                    Type: 'Annot', Subtype: 'Widget', FT: 'Sig',
-                    Rect: [0, 0, 0, 0], V: sigRef, T: PDFString.of('Signature1'), F: 132, P: page.ref
-                }));
-                page.node.set(PDFName.of('Annots'), ctx.obj([widgetRef]));
-                doc.catalog.set(PDFName.of('AcroForm'), ctx.obj({ SigFlags: 3, Fields: [widgetRef] }));
-                const pdf = await doc.save({ useObjectStreams: false });
-
-                // Fill in the real ByteRange around the /Contents placeholder
-                const str = bytesToBinary(pdf);
-                const br = /\/ByteRange\s*\[\s*0\s+\/\*{10}\s+\/\*{10}\s+\/\*{10}\s*\]/.exec(str);
-                const placeholder = '<' + '0'.repeat(SIG_HEX_LEN) + '>';
-                const phPos = str.indexOf(placeholder);
-                if (!br || phPos < 0) throw new Error('signature placeholder not found');
-                const phEnd = phPos + placeholder.length;
-                const brStr = `/ByteRange [0 ${phPos} ${phEnd} ${pdf.length - phEnd}]`;
-                if (brStr.length > br[0].length) throw new Error('ByteRange too long');
-                pdf.set(binaryToBytes(brStr.padEnd(br[0].length, ' ')), br.index);
-
-                const signed = new Uint8Array(phPos + pdf.length - phEnd);
-                signed.set(pdf.subarray(0, phPos), 0);
-                signed.set(pdf.subarray(phEnd), phPos);
-
-                const p7 = forge.pkcs7.createSignedData();
-                p7.content = forge.util.createBuffer(bytesToBinary(signed));
-                p7.addCertificate(unlocked.cert);
-                // Parsed UTF-8 name values are raw bytes; decode them so forge doesn't encode twice
-                // (otherwise the signer's issuer won't match the certificate, e.g. a Hebrew name)
-                const issuer = unlocked.cert.issuer.attributes.map(a =>
-                    a.valueTagClass === forge.asn1.Type.UTF8 ? { ...a, value: readText(a.value) } : a);
-                p7.addSigner({
-                    key: unlocked.key,
-                    issuer,
-                    serialNumber: unlocked.cert.serialNumber,
-                    digestAlgorithm: forge.pki.oids.sha256,
-                    authenticatedAttributes: [
-                        { type: forge.pki.oids.contentType, value: forge.pki.oids.data },
-                        { type: forge.pki.oids.messageDigest },
-                        { type: forge.pki.oids.signingTime, value: new Date() }
-                    ]
-                });
-                p7.sign({ detached: true });
-                const hex = forge.util.bytesToHex(forge.asn1.toDer(p7.toAsn1()).getBytes());
-                if (hex.length > SIG_HEX_LEN) throw new Error('signature too large');
-                pdf.set(binaryToBytes(hex), phPos + 1);
-                return pdf;
-            }
-
-            return { generate, importP12, unlock, lock, remove, status, p12Bytes, certBytes, signPdf, bytesToBinary };
-        })();
-    </script>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
@@ -1022,107 +790,27 @@
         function padNum(n, len) {
             return String(n).padStart(len, '0');
         }
-        // Last issued receipt number (0 if none issued on this device yet)
-        function loadLastNum() {
-            const n = parseInt(loadStorage('rcpt_lastNum', 0), 10);
-            return Number.isNaN(n) ? 0 : n;
-        }
-        function nextReceiptNum() {
-            const last = loadLastNum();
-            return last > 0 ? String(last + 1) : DEFAULT_RECEIPT.number;
-        }
-        function downloadBytes(bytes, filename, type) {
-            const url = URL.createObjectURL(new Blob([bytes], { type }));
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 10000);
-        }
-        function shortFingerprint(fp) {
-            return (fp || '').slice(0, 32).match(/.{1,4}/g)?.join(' ') || '';
-        }
         function todayStr() {
             const d = new Date();
-            return `${d.getFullYear()}-${padNum(d.getMonth() + 1, 2)}-${padNum(d.getDate(), 2)}`;
+            return d.toISOString().split('T')[0];
         }
 
         function App() {
-            const [business, setBusiness] = useState(() => ({ ...DEFAULT_BUSINESS, ...loadStorage('rcpt_biz', {}) }));
+            const [business, setBusiness] = useState(DEFAULT_BUSINESS);
             const [customers, setCustomers] = useState(() => loadStorage('rcpt_customers', []));
             const [selCustId, setSelCustId] = useState('');
             const [custName, setCustName] = useState(DEFAULT_RECEIPT.customerName);
             const [showNewCust, setShowNewCust] = useState(false);
 
-            const [rcptNum, setRcptNum] = useState(nextReceiptNum);
-            const [nextNumDraft, setNextNumDraft] = useState('');
-            const [focusNextNum, setFocusNextNum] = useState(false);
-            const [date, setDate] = useState(todayStr);
+            const [rcptNum, setRcptNum] = useState(DEFAULT_RECEIPT.number);
+            const [date, setDate] = useState(DEFAULT_RECEIPT.date);
             const [items, setItems] = useState(DEFAULT_RECEIPT.items);
             const [payment, setPayment] = useState(DEFAULT_RECEIPT.paymentMethod);
-            const [paymentDate, setPaymentDate] = useState(todayStr);
+            const [paymentDate, setPaymentDate] = useState(DEFAULT_RECEIPT.paymentDate);
             const [paymentAmount, setPaymentAmount] = useState(DEFAULT_RECEIPT.paymentAmount);
             const [showSettings, setShowSettings] = useState(false);
             const [generating, setGenerating] = useState(false);
             const [toast, setToast] = useState('');
-
-            const [sig, setSig] = useState(() => window.ReceiptSigner.status());
-            const [sigPass, setSigPass] = useState('');
-            const [sigPass2, setSigPass2] = useState('');
-            const [sigFile, setSigFile] = useState(null);
-            const [sigBusy, setSigBusy] = useState(false);
-            const refreshSig = () => setSig(window.ReceiptSigner.status());
-
-            const createSigKey = async () => {
-                if (sigPass.length < 8) return showToast('הסיסמה חייבת להכיל לפחות 8 תווים');
-                if (sigPass !== sigPass2) return showToast('הסיסמאות לא תואמות');
-                if (!business.name.trim() || !business.taxId.trim()) return showToast('יש למלא שם עסק ומספר עוסק בהגדרות');
-                setSigBusy(true);
-                try {
-                    await window.ReceiptSigner.generate(
-                        { name: business.name.trim(), taxId: business.taxId.trim(), email: business.email.trim() }, sigPass);
-                    downloadBytes(window.ReceiptSigner.p12Bytes(), `מפתח-חתימה-${business.taxId.trim()}.p12`, 'application/x-pkcs12');
-                    setSigPass(''); setSigPass2('');
-                    showToast('מפתח החתימה נוצר. שמור את קובץ הגיבוי בדרייב');
-                } catch (err) {
-                    console.error(err);
-                    showToast('שגיאה ביצירת מפתח החתימה');
-                }
-                setSigBusy(false);
-                refreshSig();
-            };
-
-            const importSigKey = async () => {
-                if (!sigFile) return showToast('יש לבחור קובץ מפתח (.p12)');
-                try {
-                    const bytes = new Uint8Array(await sigFile.arrayBuffer());
-                    window.ReceiptSigner.importP12(forge.util.encode64(window.ReceiptSigner.bytesToBinary(bytes)), sigPass);
-                    setSigPass(''); setSigFile(null);
-                    showToast('מפתח החתימה נטען בהצלחה');
-                } catch (err) {
-                    console.error(err);
-                    showToast('לא ניתן לפתוח את הקובץ – בדוק את הסיסמה');
-                }
-                refreshSig();
-            };
-
-            const unlockSig = () => {
-                try {
-                    window.ReceiptSigner.unlock(sigPass);
-                    setSigPass('');
-                } catch (err) {
-                    showToast('סיסמה שגויה');
-                }
-                refreshSig();
-            };
-
-            const removeSig = () => {
-                if (!confirm('להסיר את מפתח החתימה מהמכשיר? בלי קובץ הגיבוי והסיסמה לא תוכל לשחזר אותו.')) return;
-                window.ReceiptSigner.remove();
-                refreshSig();
-            };
 
             const receiptRef = useRef(null);
 
@@ -1132,19 +820,6 @@
             const showToast = (msg) => {
                 setToast(msg);
                 setTimeout(() => setToast(''), 2500);
-            };
-
-            // Next receipt number may only move forward
-            const applyNextNum = () => {
-                if (!nextNumDraft) return;
-                const v = parseInt(nextNumDraft, 10);
-                if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) {
-                    setRcptNum(String(v));
-                    showToast(`מספר הקבלה הבא: ${v}`);
-                } else {
-                    showToast('אפשר רק להעלות את מספר הקבלה');
-                }
-                setNextNumDraft('');
             };
 
             const selectCustomer = (id) => {
@@ -1191,10 +866,6 @@
                     showToast('יש למלא שם לקוח');
                     return;
                 }
-                if (!window.ReceiptSigner.status().unlocked) {
-                    showToast('יש לפתוח את החתימה הדיגיטלית לפני הפקת קבלה');
-                    return;
-                }
                 setGenerating(true);
                 try {
                     await new Promise(r => setTimeout(r, 200));
@@ -1238,27 +909,21 @@
 
                     document.body.removeChild(clone);
 
-                    // JPEG keeps the PDF under ~1MB (PNG produced ~9MB files)
-                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+                    const imgData = canvas.toDataURL('image/png');
                     const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+                    const pdf = new jsPDF('p', 'mm', 'a4');
                     const pw = pdf.internal.pageSize.getWidth();
                     const imgW = pw - 24;
                     const imgH = (canvas.height * imgW) / canvas.width;
-                    pdf.addImage(imgData, 'JPEG', 12, 12, imgW, imgH);
-                    const signedPdf = await window.ReceiptSigner.signPdf(new Uint8Array(pdf.output('arraybuffer')), {
-                        name: business.name,
-                        reason: `קבלה מס׳ ${rcptNum}`,
-                        location: business.address
-                    });
-                    downloadBytes(signedPdf, `קבלה_${rcptNum}.pdf`, 'application/pdf');
+                    pdf.addImage(imgData, 'PNG', 12, 12, imgW, imgH);
+                    pdf.save(`קבלה_${rcptNum}.pdf`);
 
-                    const currentNum = Math.max(parseInt(rcptNum, 10), loadLastNum() + 1);
+                    const currentNum = parseInt(rcptNum, 10);
                     saveStorage('rcpt_lastNum', currentNum);
-                    setRcptNum(String(currentNum + 1));
-                    showToast('הקבלה נחתמה והופקה בהצלחה!');
+                    setRcptNum(padNum(currentNum + 1, 4));
+                    showToast('הקבלה הופקה בהצלחה!');
                 } catch (err) {
-                    showToast('שגיאה ביצירת או חתימת ה-PDF');
+                    showToast('שגיאה ביצירת PDF');
                     console.error(err);
                 }
                 setGenerating(false);
@@ -1273,7 +938,7 @@
                         <div className="header-title">
                             <h1>מערכת קבלות דיגיטלית</h1>
                         </div>
-                        <button className="btn-settings" onClick={() => { setFocusNextNum(false); setShowSettings(true); }}>
+                        <button className="btn-settings" onClick={() => setShowSettings(true)}>
                             <span>⚙</span> הגדרות עסק
                         </button>
                     </header>
@@ -1322,16 +987,8 @@
                                             onChange={e => setBusiness(p => ({...p, taxId: e.target.value}))} />
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">מספר הקבלה הבא (ניתן רק להעלות)</label>
-                                    <input className="form-input" type="number" inputMode="numeric"
-                                        placeholder={`כרגע: ${parseInt(rcptNum, 10)}`} autoFocus={focusNextNum}
-                                        value={nextNumDraft} onChange={e => setNextNumDraft(e.target.value)}
-                                        onBlur={applyNextNum}
-                                        onKeyDown={e => { if (e.key === 'Enter') applyNextNum(); }} />
-                                </div>
                                 <div className="modal-actions">
-                                    <button className="btn btn-primary" onClick={() => { applyNextNum(); setShowSettings(false); }}>שמור וסגור</button>
+                                    <button className="btn btn-primary" onClick={() => setShowSettings(false)}>שמור וסגור</button>
                                     <button className="btn btn-secondary" onClick={() => { setBusiness(DEFAULT_BUSINESS); }}>
                                         אפס לברירת מחדל
                                     </button>
@@ -1403,12 +1060,8 @@
                                 <div className="form-row">
                                     <div className="form-group small">
                                         <label className="form-label">מספר קבלה</label>
-                                        <input className="form-input" value={rcptNum} readOnly
-                                            title="המספר נקבע אוטומטית ואינו ניתן לעריכה" />
-                                        <button className="btn btn-ghost" style={{fontSize: 13, marginTop: 4, padding: '4px 8px'}}
-                                            onClick={() => { setFocusNextNum(true); setShowSettings(true); }}>
-                                            ✏️ שנה מספר
-                                        </button>
+                                        <input className="form-input" value={rcptNum}
+                                            onChange={e => setRcptNum(e.target.value)} />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">תאריך</label>
@@ -1469,77 +1122,6 @@
                                     <span>סה״כ</span>
                                     <span className="amount">₪ {formatCurrency(total)}</span>
                                 </div>
-                            </div>
-
-                            {/* Digital Signature Card */}
-                            <div className="card">
-                                <div className="card-title"><span className="icon">🔏</span> חתימה דיגיטלית</div>
-
-                                {!sig.hasKey && (
-                                    <>
-                                        <p className="sig-note">
-                                            כל קבלה נחתמת במפתח פרטי שנוצר במכשיר הזה ונשמר מוצפן בסיסמה שרק אתה יודע.
-                                            אחרי היצירה יורד קובץ גיבוי של המפתח – שמור אותו בדרייב וזכור את הסיסמה.
-                                        </p>
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label className="form-label">סיסמה (8 תווים לפחות)</label>
-                                                <input className="form-input" type="password" autoComplete="new-password"
-                                                    value={sigPass} onChange={e => setSigPass(e.target.value)} />
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">אימות סיסמה</label>
-                                                <input className="form-input" type="password" autoComplete="new-password"
-                                                    value={sigPass2} onChange={e => setSigPass2(e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <button className="btn btn-primary" onClick={createSigKey} disabled={sigBusy}>
-                                            {sigBusy ? 'יוצר מפתח...' : 'צור מפתח חתימה'}
-                                        </button>
-                                        <div className="sig-divider">או טען מפתח קיים ממכשיר אחר</div>
-                                        <div className="form-group">
-                                            <input className="form-input" type="file" accept=".p12,.pfx"
-                                                onChange={e => setSigFile(e.target.files[0] || null)} />
-                                        </div>
-                                        <button className="btn btn-secondary" onClick={importSigKey}>טען מפתח (עם הסיסמה שלמעלה)</button>
-                                    </>
-                                )}
-
-                                {sig.hasKey && !sig.unlocked && (
-                                    <>
-                                        <p className="sig-note">🔒 החתימה נעולה. הזן את הסיסמה כדי להפיק קבלות חתומות.</p>
-                                        <div className="form-group">
-                                            <input className="form-input" type="password" autoComplete="current-password"
-                                                placeholder="סיסמת החתימה" value={sigPass}
-                                                onChange={e => setSigPass(e.target.value)}
-                                                onKeyDown={e => { if (e.key === 'Enter') unlockSig(); }} />
-                                        </div>
-                                        <div className="sig-actions">
-                                            <button className="btn btn-primary" onClick={unlockSig}>פתח חתימה</button>
-                                            <button className="btn btn-danger-ghost" onClick={removeSig}>הסר מפתח מהמכשיר</button>
-                                        </div>
-                                    </>
-                                )}
-
-                                {sig.unlocked && sig.info && (
-                                    <>
-                                        <div className="sig-ok">✅ החתימה פעילה – {sig.info.name}</div>
-                                        <div className="sig-fp">טביעת אצבע: {shortFingerprint(sig.info.fingerprint)}</div>
-                                        <div className="sig-fp">בתוקף עד: {sig.info.validTo.toLocaleDateString('he-IL')}</div>
-                                        <div className="sig-actions">
-                                            <button className="btn btn-secondary" onClick={() =>
-                                                downloadBytes(window.ReceiptSigner.p12Bytes(), `מפתח-חתימה-${business.taxId}.p12`, 'application/x-pkcs12')}>
-                                                הורד גיבוי מפתח
-                                            </button>
-                                            <button className="btn btn-secondary" onClick={() =>
-                                                downloadBytes(window.ReceiptSigner.certBytes(), 'תעודת-חתימה.cer', 'application/pkix-cert')}>
-                                                הורד תעודה ציבורית
-                                            </button>
-                                            <button className="btn btn-secondary" onClick={() => { window.ReceiptSigner.lock(); refreshSig(); }}>נעל</button>
-                                            <button className="btn btn-danger-ghost" onClick={removeSig}>הסר מהמכשיר</button>
-                                        </div>
-                                    </>
-                                )}
                             </div>
 
                             {/* Generate Button */}
@@ -1652,15 +1234,6 @@
                                         <img src="assets/signature.png" alt="חתימה" className="receipt-signature-img" />
                                         <div className="receipt-signature-label">חתימה</div>
                                     </div>
-                                </div>
-                                <div className="receipt-computerized">
-                                    מסמך ממוחשב חתום דיגיטלית
-                                    {sig.unlocked && sig.info && (
-                                        <div className="receipt-fingerprint">
-                                            טביעת אצבע של תעודת החתימה:{' '}
-                                            <span className="receipt-fingerprint-hex" dir="ltr">{shortFingerprint(sig.info.fingerprint)}</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
