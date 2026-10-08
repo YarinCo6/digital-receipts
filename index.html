@@ -602,7 +602,11 @@
         .receipt-fingerprint {
             margin-top: 2px;
             font-size: 10px;
+        }
+        .receipt-fingerprint-hex {
+            display: inline-block;
             direction: ltr;
+            unicode-bidi: isolate;
             font-family: monospace;
         }
 
@@ -1220,13 +1224,14 @@
 
                     document.body.removeChild(clone);
 
-                    const imgData = canvas.toDataURL('image/png');
+                    // JPEG keeps the PDF under ~1MB (PNG produced ~9MB files)
+                    const imgData = canvas.toDataURL('image/jpeg', 0.92);
                     const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
                     const pw = pdf.internal.pageSize.getWidth();
                     const imgW = pw - 24;
                     const imgH = (canvas.height * imgW) / canvas.width;
-                    pdf.addImage(imgData, 'PNG', 12, 12, imgW, imgH);
+                    pdf.addImage(imgData, 'JPEG', 12, 12, imgW, imgH);
                     const signedPdf = await window.ReceiptSigner.signPdf(new Uint8Array(pdf.output('arraybuffer')), {
                         name: business.name,
                         reason: `קבלה מס׳ ${rcptNum}`,
@@ -1637,7 +1642,8 @@
                                     מסמך ממוחשב · חתום בחתימה אלקטרונית
                                     {sig.unlocked && sig.info && (
                                         <div className="receipt-fingerprint">
-                                            טביעת אצבע של תעודת החתימה: {shortFingerprint(sig.info.fingerprint)}
+                                            טביעת אצבע של תעודת החתימה:{' '}
+                                            <span className="receipt-fingerprint-hex" dir="ltr">{shortFingerprint(sig.info.fingerprint)}</span>
                                         </div>
                                     )}
                                 </div>
