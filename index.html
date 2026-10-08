@@ -591,6 +591,12 @@
             text-align: center;
             flex-shrink: 0;
         }
+        .receipt-computerized {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+        }
         .receipt-signature-img {
             width: 160px;
             height: auto;
@@ -790,23 +796,33 @@
         function padNum(n, len) {
             return String(n).padStart(len, '0');
         }
+        // Last issued receipt number (0 if none issued on this device yet)
+        function loadLastNum() {
+            const n = parseInt(loadStorage('rcpt_lastNum', 0), 10);
+            return Number.isNaN(n) ? 0 : n;
+        }
+        function nextReceiptNum() {
+            const last = loadLastNum();
+            return last > 0 ? padNum(last + 1, 4) : DEFAULT_RECEIPT.number;
+        }
         function todayStr() {
             const d = new Date();
-            return d.toISOString().split('T')[0];
+            return `${d.getFullYear()}-${padNum(d.getMonth() + 1, 2)}-${padNum(d.getDate(), 2)}`;
         }
 
         function App() {
-            const [business, setBusiness] = useState(DEFAULT_BUSINESS);
+            const [business, setBusiness] = useState(() => ({ ...DEFAULT_BUSINESS, ...loadStorage('rcpt_biz', {}) }));
             const [customers, setCustomers] = useState(() => loadStorage('rcpt_customers', []));
             const [selCustId, setSelCustId] = useState('');
             const [custName, setCustName] = useState(DEFAULT_RECEIPT.customerName);
             const [showNewCust, setShowNewCust] = useState(false);
 
-            const [rcptNum, setRcptNum] = useState(DEFAULT_RECEIPT.number);
-            const [date, setDate] = useState(DEFAULT_RECEIPT.date);
+            const [rcptNum, setRcptNum] = useState(nextReceiptNum);
+            const [nextNumDraft, setNextNumDraft] = useState('');
+            const [date, setDate] = useState(todayStr);
             const [items, setItems] = useState(DEFAULT_RECEIPT.items);
             const [payment, setPayment] = useState(DEFAULT_RECEIPT.paymentMethod);
-            const [paymentDate, setPaymentDate] = useState(DEFAULT_RECEIPT.paymentDate);
+            const [paymentDate, setPaymentDate] = useState(todayStr);
             const [paymentAmount, setPaymentAmount] = useState(DEFAULT_RECEIPT.paymentAmount);
             const [showSettings, setShowSettings] = useState(false);
             const [generating, setGenerating] = useState(false);
@@ -918,7 +934,7 @@
                     pdf.addImage(imgData, 'PNG', 12, 12, imgW, imgH);
                     pdf.save(`קבלה_${rcptNum}.pdf`);
 
-                    const currentNum = parseInt(rcptNum, 10);
+                    const currentNum = Math.max(parseInt(rcptNum, 10), loadLastNum() + 1);
                     saveStorage('rcpt_lastNum', currentNum);
                     setRcptNum(padNum(currentNum + 1, 4));
                     showToast('הקבלה הופקה בהצלחה!');
@@ -986,6 +1002,17 @@
                                         <input className="form-input" value={business.taxId}
                                             onChange={e => setBusiness(p => ({...p, taxId: e.target.value}))} />
                                     </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">מספר הקבלה הבא (ניתן רק להעלות)</label>
+                                    <input className="form-input" type="number" placeholder={String(parseInt(rcptNum, 10))}
+                                        value={nextNumDraft} onChange={e => setNextNumDraft(e.target.value)}
+                                        onBlur={() => {
+                                            const v = parseInt(nextNumDraft, 10);
+                                            if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) setRcptNum(padNum(v, 4));
+                                            else if (nextNumDraft) showToast('אפשר רק להעלות את מספר הקבלה');
+                                            setNextNumDraft('');
+                                        }} />
                                 </div>
                                 <div className="modal-actions">
                                     <button className="btn btn-primary" onClick={() => setShowSettings(false)}>שמור וסגור</button>
@@ -1060,8 +1087,8 @@
                                 <div className="form-row">
                                     <div className="form-group small">
                                         <label className="form-label">מספר קבלה</label>
-                                        <input className="form-input" value={rcptNum}
-                                            onChange={e => setRcptNum(e.target.value)} />
+                                        <input className="form-input" value={rcptNum} readOnly
+                                            title="המספר נקבע אוטומטית ואינו ניתן לעריכה" />
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">תאריך</label>
@@ -1235,6 +1262,7 @@
                                         <div className="receipt-signature-label">חתימה</div>
                                     </div>
                                 </div>
+                                <div className="receipt-computerized">מסמך ממוחשב</div>
                             </div>
                         </div>
                     </div>
