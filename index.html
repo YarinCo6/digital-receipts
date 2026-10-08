@@ -1058,6 +1058,7 @@
 
             const [rcptNum, setRcptNum] = useState(nextReceiptNum);
             const [nextNumDraft, setNextNumDraft] = useState('');
+            const [focusNextNum, setFocusNextNum] = useState(false);
             const [date, setDate] = useState(todayStr);
             const [items, setItems] = useState(DEFAULT_RECEIPT.items);
             const [payment, setPayment] = useState(DEFAULT_RECEIPT.paymentMethod);
@@ -1131,6 +1132,19 @@
             const showToast = (msg) => {
                 setToast(msg);
                 setTimeout(() => setToast(''), 2500);
+            };
+
+            // Next receipt number may only move forward
+            const applyNextNum = () => {
+                if (!nextNumDraft) return;
+                const v = parseInt(nextNumDraft, 10);
+                if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) {
+                    setRcptNum(String(v));
+                    showToast(`מספר הקבלה הבא: ${v}`);
+                } else {
+                    showToast('אפשר רק להעלות את מספר הקבלה');
+                }
+                setNextNumDraft('');
             };
 
             const selectCustomer = (id) => {
@@ -1259,7 +1273,7 @@
                         <div className="header-title">
                             <h1>מערכת קבלות דיגיטלית</h1>
                         </div>
-                        <button className="btn-settings" onClick={() => setShowSettings(true)}>
+                        <button className="btn-settings" onClick={() => { setFocusNextNum(false); setShowSettings(true); }}>
                             <span>⚙</span> הגדרות עסק
                         </button>
                     </header>
@@ -1310,17 +1324,14 @@
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">מספר הקבלה הבא (ניתן רק להעלות)</label>
-                                    <input className="form-input" type="number" placeholder={String(parseInt(rcptNum, 10))}
+                                    <input className="form-input" type="number" inputMode="numeric"
+                                        placeholder={`כרגע: ${parseInt(rcptNum, 10)}`} autoFocus={focusNextNum}
                                         value={nextNumDraft} onChange={e => setNextNumDraft(e.target.value)}
-                                        onBlur={() => {
-                                            const v = parseInt(nextNumDraft, 10);
-                                            if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) setRcptNum(String(v));
-                                            else if (nextNumDraft) showToast('אפשר רק להעלות את מספר הקבלה');
-                                            setNextNumDraft('');
-                                        }} />
+                                        onBlur={applyNextNum}
+                                        onKeyDown={e => { if (e.key === 'Enter') applyNextNum(); }} />
                                 </div>
                                 <div className="modal-actions">
-                                    <button className="btn btn-primary" onClick={() => setShowSettings(false)}>שמור וסגור</button>
+                                    <button className="btn btn-primary" onClick={() => { applyNextNum(); setShowSettings(false); }}>שמור וסגור</button>
                                     <button className="btn btn-secondary" onClick={() => { setBusiness(DEFAULT_BUSINESS); }}>
                                         אפס לברירת מחדל
                                     </button>
@@ -1394,6 +1405,10 @@
                                         <label className="form-label">מספר קבלה</label>
                                         <input className="form-input" value={rcptNum} readOnly
                                             title="המספר נקבע אוטומטית ואינו ניתן לעריכה" />
+                                        <button className="btn btn-ghost" style={{fontSize: 13, marginTop: 4, padding: '4px 8px'}}
+                                            onClick={() => { setFocusNextNum(true); setShowSettings(true); }}>
+                                            ✏️ שנה מספר
+                                        </button>
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">תאריך</label>
