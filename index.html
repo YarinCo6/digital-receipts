@@ -1029,7 +1029,7 @@
         }
         function nextReceiptNum() {
             const last = loadLastNum();
-            return last > 0 ? padNum(last + 1, 4) : DEFAULT_RECEIPT.number;
+            return last > 0 ? String(last + 1) : DEFAULT_RECEIPT.number;
         }
         function downloadBytes(bytes, filename, type) {
             const url = URL.createObjectURL(new Blob([bytes], { type }));
@@ -1241,7 +1241,7 @@
 
                     const currentNum = Math.max(parseInt(rcptNum, 10), loadLastNum() + 1);
                     saveStorage('rcpt_lastNum', currentNum);
-                    setRcptNum(padNum(currentNum + 1, 4));
+                    setRcptNum(String(currentNum + 1));
                     showToast('הקבלה נחתמה והופקה בהצלחה!');
                 } catch (err) {
                     showToast('שגיאה ביצירת או חתימת ה-PDF');
@@ -1314,7 +1314,7 @@
                                         value={nextNumDraft} onChange={e => setNextNumDraft(e.target.value)}
                                         onBlur={() => {
                                             const v = parseInt(nextNumDraft, 10);
-                                            if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) setRcptNum(padNum(v, 4));
+                                            if (!Number.isNaN(v) && v > parseInt(rcptNum, 10)) setRcptNum(String(v));
                                             else if (nextNumDraft) showToast('אפשר רק להעלות את מספר הקבלה');
                                             setNextNumDraft('');
                                         }} />
