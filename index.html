@@ -319,6 +319,16 @@
             font-weight: 700;
             font-size: 16px;
         }
+        .amount-mismatch {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.5;
+        }
         .items-total .amount {
             color: var(--accent-hover);
             font-size: 18px;
@@ -860,10 +870,16 @@
             const updateItem = (id, field, val) => setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: val } : i));
 
             const total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+            // Compare in agorot to avoid floating-point noise
+            const amountsMismatch = Math.round(total * 100) !== Math.round((parseFloat(paymentAmount) || 0) * 100);
 
             const generatePDF = async () => {
                 if (!custName.trim()) {
                     showToast('יש למלא שם לקוח');
+                    return;
+                }
+                if (amountsMismatch) {
+                    showToast('סה״כ פירוט השורות לא תואם לסכום ששולם');
                     return;
                 }
                 setGenerating(true);
@@ -1122,10 +1138,15 @@
                                     <span>סה״כ</span>
                                     <span className="amount">₪ {formatCurrency(total)}</span>
                                 </div>
+                                {amountsMismatch && (
+                                    <div className="amount-mismatch">
+                                        ⚠ סה״כ פירוט השורות (₪ {formatCurrency(total)}) לא תואם לסכום ששולם (₪ {formatCurrency(parseFloat(paymentAmount) || 0)}). לא ניתן להפיק קבלה עד שהסכומים יתאימו.
+                                    </div>
+                                )}
                             </div>
 
                             {/* Generate Button */}
-                            <button className="btn btn-generate" onClick={generatePDF} disabled={generating}>
+                            <button className="btn btn-generate" onClick={generatePDF} disabled={generating || amountsMismatch}>
                                 {generating ? (
                                     <><span className="spinner"></span> מפיק קבלה...</>
                                 ) : (
