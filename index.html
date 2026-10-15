@@ -858,7 +858,7 @@
             const [items, setItems] = useState(() =>
                 (template && template.items && template.items.length ? template.items : DEFAULT_ITEMS).map(i => ({ id: newId(), desc: i.desc || '', amount: i.amount || '' })));
             const [payments, setPayments] = useState(() => [{
-                id: newId(), method: (template && template.method) || PAYMENT_METHODS[0], date: todayStr(), amount: '', details: ''
+                id: newId(), method: (template && template.method) || PAYMENT_METHODS[0], amount: '', details: ''
             }]);
             /* while there is one payment that was never typed in, it follows the total by itself */
             const [payAuto, setPayAuto] = useState(true);
@@ -910,7 +910,7 @@
                 setPayAuto(false);
                 const used = new Set(payments.map(p => p.method));
                 const method = PAYMENT_METHODS.find(m => !used.has(m)) || PAYMENT_METHODS[0];
-                setPayments(prev => [...prev, { id: newId(), method, date: prev[prev.length - 1].date || todayStr(), amount: remaining > 0 ? amountStr(remaining) : '', details: '' }]);
+                setPayments(prev => [...prev, { id: newId(), method, amount: remaining > 0 ? amountStr(remaining) : '', details: '' }]);
             };
             const removePayment = (id) => {
                 if (payments.length <= 1) return;
@@ -931,7 +931,6 @@
             if (!items.some(i => i.desc.trim() && num(i.amount) > 0)) problems.push('שורה אחת לפחות עם תיאור וסכום');
             if (items.some(i => num(i.amount) > 0 && !i.desc.trim())) problems.push('תיאור לכל שורה שיש בה סכום');
             if (payments.some(p => num(p.amount) <= 0)) problems.push('סכום לכל אמצעי תשלום');
-            if (payments.some(p => !p.date)) problems.push('תאריך לכל תשלום');
             if (cents(total) !== cents(paid) && total > 0) problems.push(remaining > 0 ? `להוסיף תשלום של ${formatMoney(remaining)} (שולם פחות מהסה״כ)` : `להוריד ${formatMoney(-remaining)} מהתשלומים (שולם יותר מהסה״כ)`);
 
             const generatePDF = async () => {
@@ -1108,7 +1107,7 @@
                                             onChange={e => setRcptNum(e.target.value.replace(/[^\d]/g, ''))} />
                                     </div>
                                     <div className="form-group">
-                                        <label className="form-label">תאריך הקבלה</label>
+                                        <label className="form-label">תאריך</label>
                                         <input className="form-input" type="date" value={date}
                                             onChange={e => setDate(e.target.value)} />
                                     </div>
@@ -1185,8 +1184,6 @@
                                                     disabled={payments.length <= 1} style={{opacity: payments.length <= 1 ? 0.3 : 1}}>×</button>
                                             </div>
                                             <div className="pay-bottom">
-                                                <input className="form-input pay-date" type="date" value={p.date} aria-label="תאריך התשלום"
-                                                    onChange={e => updatePayment(p.id, 'date', e.target.value)} />
                                                 <input className="form-input pay-details" placeholder={DETAIL_HINT[p.method] || 'פרטים (לא חובה)'} aria-label="פרטים"
                                                     value={p.details} onChange={e => updatePayment(p.id, 'details', e.target.value)} />
                                             </div>
@@ -1295,7 +1292,6 @@
                                         <tr>
                                             <th>אמצעי תשלום</th>
                                             {anyDetails && <th>פרטים</th>}
-                                            <th>תאריך</th>
                                             <th>סכום</th>
                                         </tr>
                                     </thead>
@@ -1304,7 +1300,6 @@
                                             <tr key={p.id}>
                                                 <td>{p.method}</td>
                                                 {anyDetails && <td>{p.details}</td>}
-                                                <td>{formatDisplayDate(p.date)}</td>
                                                 <td>{formatMoney(p.amount)}</td>
                                             </tr>
                                         ))}
