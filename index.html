@@ -537,6 +537,9 @@
             background: #f8f9fa;
         }
 
+        .receipt-table .col-method { width: 26%; white-space: nowrap; }
+        .receipt-table .col-amount { width: 22% !important; white-space: nowrap; }
+        .receipt-table .col-details { width: auto !important; }
         .receipt-payment {
             margin-top: 20px;
             font-size: 15px;
@@ -1021,8 +1024,14 @@
                 setGenerating(false);
             };
 
-            const methodsText = [...new Set(payments.map(p => p.method))].join(', ');
-            const anyDetails = payments.some(p => p.details.trim());
+            /* the receipt's rows: with one payment method, a row per line (the method beside it); with several, a row per payment, saying what it was for */
+            const join = (...l) => l.filter(x => x && String(x).trim()).join(' · ');
+            const shownItems = items.filter(i => i.desc.trim() || num(i.amount) > 0);
+            const shownPays = payments.filter(p => num(p.amount) > 0);
+            const onePay = shownPays[0] || payments[0];
+            const receiptRows = shownPays.length <= 1
+                ? (shownItems.length ? shownItems : [{ id: 'empty', desc: '', amount: '' }]).map((i, k) => ({ key: 'i' + i.id, method: onePay.method, details: join(i.desc, k === 0 ? onePay.details : ''), amount: i.amount }))
+                : shownPays.map(p => ({ key: 'p' + p.id, method: p.method, details: join(shownItems.map(i => i.desc.trim()).filter(Boolean).join(', '), p.details), amount: p.amount }));
 
             return (
                 <div className="fade-in">
@@ -1271,59 +1280,27 @@
                                     </div>
                                 </div>
 
-                                {/* Table */}
+                                {/* One table: how it was paid, what for, how much; the total once, under it */}
                                 <table className="receipt-table">
                                     <thead>
                                         <tr>
+                                            <th className="col-method">אמצעי תשלום</th>
                                             <th className="col-details">פרטים</th>
                                             <th className="col-amount">הסכום בש״ח</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {items.map((item) => (
-                                            <tr key={item.id}>
-                                                <td className="col-details">
-                                                    {item.desc || <span className="receipt-empty">—</span>}
-                                                </td>
-                                                <td className="col-amount">
-                                                    {item.amount ? formatMoney(item.amount) : ''}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        <tr className="receipt-total-row">
-                                            <td className="col-details" style={{fontWeight: 700}}>סה״כ</td>
-                                            <td className="col-amount" style={{fontWeight: 700}}>
-                                                {total > 0 ? formatMoney(total) : '—'}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-
-                                {/* Payment */}
-                                <div className="receipt-payment">
-                                    <span className="receipt-payment-label">שולם באמצעות:</span>
-                                    <span className="receipt-payment-method">{methodsText}</span>
-                                </div>
-                                <table className="receipt-payment-details">
-                                    <thead>
-                                        <tr>
-                                            <th>אמצעי תשלום</th>
-                                            {anyDetails && <th>פרטים</th>}
-                                            <th>סכום</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {payments.map(p => (
-                                            <tr key={p.id}>
-                                                <td>{p.method}</td>
-                                                {anyDetails && <td>{p.details}</td>}
-                                                <td>{formatMoney(p.amount)}</td>
+                                        {receiptRows.map(r => (
+                                            <tr key={r.key}>
+                                                <td className="col-method">{r.method}</td>
+                                                <td className="col-details">{r.details || <span className="receipt-empty">—</span>}</td>
+                                                <td className="col-amount">{r.amount ? formatMoney(r.amount) : ''}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                                 <div className="receipt-paid-total">
-                                    <span>סה''כ שולם:</span>
+                                    <span>סה״כ שולם:</span>
                                     <strong>{formatMoney(paid)}</strong>
                                 </div>
 
