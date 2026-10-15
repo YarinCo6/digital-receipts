@@ -537,6 +537,9 @@
             background: #f8f9fa;
         }
 
+        .pay-block + .pay-block { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+        .pay-head { display: flex; align-items: center; justify-content: space-between; }
+        .pay-head .btn-danger-ghost { font-size: 16px; padding: 0 6px; }
         .receipt-payment {
             margin-top: 20px;
             font-size: 15px;
@@ -815,9 +818,11 @@
             const [rcptNum, setRcptNum] = useState(DEFAULT_RECEIPT.number);
             const [date, setDate] = useState(DEFAULT_RECEIPT.date);
             const [items, setItems] = useState(DEFAULT_RECEIPT.items);
-            const [payment, setPayment] = useState(DEFAULT_RECEIPT.paymentMethod);
-            const [paymentDate, setPaymentDate] = useState(DEFAULT_RECEIPT.paymentDate);
-            const [paymentAmount, setPaymentAmount] = useState(DEFAULT_RECEIPT.paymentAmount);
+            /* one or more payments for the same receipt: method, date and amount each */
+            const [payments, setPayments] = useState([{ id: 1, method: DEFAULT_RECEIPT.paymentMethod, date: DEFAULT_RECEIPT.paymentDate, amount: DEFAULT_RECEIPT.paymentAmount }]);
+            const updatePayment = (id, field, val) => setPayments(prev => prev.map(p => p.id === id ? { ...p, [field]: val } : p));
+            const removePayment = (id) => { if (payments.length > 1) setPayments(prev => prev.filter(p => p.id !== id)); };
+            const paymentAmount = payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
             const [showSettings, setShowSettings] = useState(false);
             const [generating, setGenerating] = useState(false);
             const [toast, setToast] = useState('');
@@ -871,7 +876,13 @@
 
             const total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
             // Compare in agorot to avoid floating-point noise
-            const amountsMismatch = Math.round(total * 100) !== Math.round((parseFloat(paymentAmount) || 0) * 100);
+            const amountsMismatch = Math.round(total * 100) !== Math.round(paymentAmount * 100);
+            /* a new payment starts with what is still missing */
+            const addPayment = () => {
+                const rest = Math.round((total - paymentAmount) * 100) / 100;
+                const last = payments[payments.length - 1];
+                setPayments(prev => [...prev, { id: Date.now(), method: PAYMENT_METHODS.find(m => !prev.some(p => p.method === m)) || PAYMENT_METHODS[0], date: last.date, amount: rest > 0 ? rest.toFixed(2) : '' }]);
+            };
 
             const generatePDF = async () => {
                 if (!custName.trim()) {
@@ -1085,27 +1096,37 @@
                                             onChange={e => setDate(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="form-group">
-                                    <label className="form-label">אמצעי תשלום</label>
-                                    <select className="form-select" value={payment}
-                                        onChange={e => setPayment(e.target.value)}>
-                                        {PAYMENT_METHODS.map(m => (
-                                            <option key={m} value={m}>{m}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label className="form-label">תאריך תשלום</label>
-                                        <input className="form-input" type="date" value={paymentDate}
-                                            onChange={e => setPaymentDate(e.target.value)} />
+                                {payments.map((p, idx) => (
+                                    <div key={p.id} className="pay-block">
+                                        <div className="pay-head">
+                                            <label className="form-label">{payments.length > 1 ? `אמצעי תשלום ${idx + 1}` : 'אמצעי תשלום'}</label>
+                                            {payments.length > 1 && (
+                                                <button className="btn btn-danger-ghost" title="הסר אמצעי תשלום" onClick={() => removePayment(p.id)}>×</button>
+                                            )}
+                                        </div>
+                                        <div className="form-group">
+                                            <select className="form-select" value={p.method}
+                                                onChange={e => updatePayment(p.id, 'method', e.target.value)}>
+                                                {PAYMENT_METHODS.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">תאריך תשלום</label>
+                                                <input className="form-input" type="date" value={p.date}
+                                                    onChange={e => updatePayment(p.id, 'date', e.target.value)} />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">סכום</label>
+                                                <input className="form-input" type="number" min="0" step="0.01" value={p.amount}
+                                                    onChange={e => updatePayment(p.id, 'amount', e.target.value)} />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="form-group">
-                                        <label className="form-label">סכום</label>
-                                        <input className="form-input" type="number" min="0" step="0.01" value={paymentAmount}
-                                            onChange={e => setPaymentAmount(e.target.value)} />
-                                    </div>
-                                </div>
+                                ))}
+                                <button className="btn btn-ghost" onClick={addPayment}>+ הוסף אמצעי תשלום</button>
                             </div>
 
                             {/* Items Card */}
@@ -1140,7 +1161,7 @@
                                 </div>
                                 {amountsMismatch && (
                                     <div className="amount-mismatch">
-                                        ⚠ סה״כ פירוט השורות (₪ {formatCurrency(total)}) לא תואם לסכום ששולם (₪ {formatCurrency(parseFloat(paymentAmount) || 0)}). לא ניתן להפיק קבלה עד שהסכומים יתאימו.
+                                        ⚠ סה״כ פירוט השורות (₪ {formatCurrency(total)}) לא תואם לסכום ששולם (₪ {formatCurrency(paymentAmount)}). לא ניתן להפיק קבלה עד שהסכומים יתאימו.
                                     </div>
                                 )}
                             </div>
@@ -1223,7 +1244,7 @@
                                 {/* Payment */}
                                 <div className="receipt-payment">
                                     <span className="receipt-payment-label">שולם באמצעות:</span>
-                                    <span className="receipt-payment-method">{payment}</span>
+                                    <span className="receipt-payment-method">{[...new Set(payments.map(p => p.method))].join(', ')}</span>
                                 </div>
                                 <table className="receipt-payment-details">
                                     <thead>
@@ -1234,11 +1255,13 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <td>{payment}</td>
-                                            <td>{formatDisplayDate(paymentDate)}</td>
-                                            <td>{formatMoney(paymentAmount)}</td>
-                                        </tr>
+                                        {payments.map(p => (
+                                            <tr key={p.id}>
+                                                <td>{p.method}</td>
+                                                <td>{formatDisplayDate(p.date)}</td>
+                                                <td>{formatMoney(p.amount)}</td>
+                                            </tr>
+                                        ))}
                                     </tbody>
                                 </table>
                                 <div className="receipt-paid-total">
