@@ -597,14 +597,27 @@
         .receipt-date span {
             font-weight: 600;
         }
+        /* "חתימה:" and then the signature, on a signing line level with the date */
         .receipt-signature {
-            text-align: center;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
             flex-shrink: 0;
         }
+        .receipt-signature-box {
+            position: relative;
+            width: 130px;
+            height: 34px;
+            border-bottom: 1px solid #555;
+        }
+        /* the image has empty space around the ink: placed so the ink sits on the line, centred */
         .receipt-signature-img {
-            width: 160px;
+            position: absolute;
+            width: 170px;
             height: auto;
-            margin-bottom: 4px;
+            top: -7px;
+            left: -26px;
+            max-width: none;
         }
         .receipt-signature-line {
             width: 160px;
@@ -616,7 +629,9 @@
             font-size: 15px;
             font-weight: 600;
             color: var(--text);
+            line-height: 1.2;
         }
+        .receipt-date { line-height: 1.2; }
         .receipt-empty {
             color: #ccc;
             font-style: italic;
@@ -655,9 +670,12 @@
                 padding-top: 20px;
                 border-top: 1px solid #e5e7eb;
             }
-            .receipt-date,
-            .receipt-signature {
+            .receipt-date {
                 display: block !important;
+                visibility: visible !important;
+            }
+            .receipt-signature {
+                display: flex !important;
                 visibility: visible !important;
             }
         }
@@ -1316,8 +1334,10 @@
                                         <span>תאריך: </span>{formatDisplayDate(date)}
                                     </div>
                                     <div className="receipt-signature">
-                                        <img src="assets/signature.png" alt="חתימה" className="receipt-signature-img" />
-                                        <div className="receipt-signature-label">חתימה</div>
+                                        <span className="receipt-signature-label">חתימה:</span>
+                                        <span className="receipt-signature-box">
+                                            <img src="assets/signature.png" alt="חתימה" className="receipt-signature-img" />
+                                        </span>
                                     </div>
                                 </div>
                             </div>
