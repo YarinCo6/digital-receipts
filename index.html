@@ -572,7 +572,7 @@
         .receipt-paid-total {
             display: flex;
             gap: 8px;
-            justify-content: flex-end;
+            justify-content: flex-start; /* RTL: on the right, under the table */
             align-items: center;
             margin-top: 10px;
             font-size: 15px;
@@ -597,7 +597,7 @@
         .receipt-date span {
             font-weight: 600;
         }
-        /* "חתימה:" and then the signature, on a signing line level with the date */
+        /* "חתימה:" and then the signature, level with the date */
         .receipt-signature {
             display: flex;
             align-items: flex-end;
@@ -608,14 +608,13 @@
             position: relative;
             width: 130px;
             height: 34px;
-            border-bottom: 1px solid #555;
         }
-        /* the image has empty space around the ink: placed so the ink sits on the line, centred */
+        /* the image has empty space around the ink: placed so the ink sits on the text line, centred */
         .receipt-signature-img {
             position: absolute;
             width: 170px;
             height: auto;
-            top: -7px;
+            top: -9px;
             left: -26px;
             max-width: none;
         }
