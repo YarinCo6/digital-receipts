@@ -826,7 +826,9 @@
         const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
         /* money always the same way: 1,250.00 ₪ */
         function formatMoney(n) {
-            return new Intl.NumberFormat('he-IL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num(n)) + ' ₪';
+            /* whole shekels without decimals (300 ₪); agorot only when there are some (299.90 ₪) */
+            const v = Math.round(num(n) * 100) / 100, whole = Number.isInteger(v);
+            return new Intl.NumberFormat('he-IL', { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(v) + ' ₪';
         }
         function padNum(n, len) {
             return String(n).padStart(len, '0');
@@ -837,6 +839,8 @@
             return d.getFullYear() + '-' + padNum(d.getMonth() + 1, 2) + '-' + padNum(d.getDate(), 2);
         }
         const cents = n => Math.round(num(n) * 100);
+        /* an amount for an input box: 300, or 299.90 */
+        const amountStr = n => { const v = Math.round(n * 100) / 100; return Number.isInteger(v) ? String(v) : v.toFixed(2); };
         let uid = Date.now();
         const newId = () => ++uid;
 
@@ -892,7 +896,7 @@
             /* ---- payments: one or more methods for the same receipt ---- */
             useEffect(() => {
                 if (payAuto && payments.length === 1) {
-                    const v = total ? total.toFixed(2) : '';
+                    const v = total ? amountStr(total) : '';
                     if (payments[0].amount !== v) setPayments(prev => [{ ...prev[0], amount: v }]);
                 }
             }, [total, payAuto, payments.length]);
@@ -906,7 +910,7 @@
                 setPayAuto(false);
                 const used = new Set(payments.map(p => p.method));
                 const method = PAYMENT_METHODS.find(m => !used.has(m)) || PAYMENT_METHODS[0];
-                setPayments(prev => [...prev, { id: newId(), method, date: prev[prev.length - 1].date || todayStr(), amount: remaining > 0 ? remaining.toFixed(2) : '', details: '' }]);
+                setPayments(prev => [...prev, { id: newId(), method, date: prev[prev.length - 1].date || todayStr(), amount: remaining > 0 ? amountStr(remaining) : '', details: '' }]);
             };
             const removePayment = (id) => {
                 if (payments.length <= 1) return;
@@ -916,7 +920,7 @@
                 const p = payments.find(x => x.id === id);
                 if (!p) return;
                 setPayAuto(false);
-                updatePayment(id, 'amount', (num(p.amount) + remaining).toFixed(2));
+                updatePayment(id, 'amount', amountStr(num(p.amount) + remaining));
             };
 
             /* ---- what still stands in the way of producing the receipt ---- */
@@ -1147,7 +1151,7 @@
                                                 value={item.desc}
                                                 onChange={e => updateItem(item.id, 'desc', e.target.value)} />
                                             <input className="form-input item-amount" type="number" min="0" step="0.01" inputMode="decimal"
-                                                placeholder="0.00"
+                                                placeholder="0"
                                                 value={item.amount}
                                                 onChange={e => updateItem(item.id, 'amount', e.target.value)} />
                                             <button className="btn btn-danger-ghost" onClick={() => removeItem(item.id)} title="הסר שורה"
@@ -1175,7 +1179,7 @@
                                                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                                                 </select>
                                                 <input className="form-input pay-amount" type="number" min="0" step="0.01" inputMode="decimal" aria-label="סכום"
-                                                    placeholder="0.00" value={p.amount}
+                                                    placeholder="0" value={p.amount}
                                                     onChange={e => updatePayment(p.id, 'amount', e.target.value)} />
                                                 <button className="btn btn-danger-ghost" onClick={() => removePayment(p.id)} title="הסר אמצעי תשלום"
                                                     disabled={payments.length <= 1} style={{opacity: payments.length <= 1 ? 0.3 : 1}}>×</button>
